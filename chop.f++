@@ -1,0 +1,73 @@
+.apply(function() {
+    if(.tmp.craft==null) .tmp.craft=.Map(); 
+    if(.tmp.craft.logging==null) .tmp.craft.logging=.Map();
+
+    this = .tmp.craft.logging;
+
+    var Axe;
+
+    Axe = .get_obj_index(6000);
+
+    Axe.onUse = function(axe, ch, str) {
+        if(.tmp.craft.logging) throw 'no ".tmp.craft.logging"';
+        this = .tmp.craft.logging;
+
+        //не лес
+        //не вооружен
+        //не стоишь
+        //дерёшься
+        //всё вырубили
+
+        //проверяем/генерим деревца.
+
+        //начинаем рубить
+        ch.logging = LoggingState(ch);
+        ch.logging.thread.start();
+    };
+
+    LoggingState = function(ch) {
+        this = .Map();
+        this.ch = ch;
+
+        yield = function() {
+            .scheduler.yield();
+            
+            try {
+                if (mob.in_room != ch.in_room)
+                    throw "victim left the room";
+            } catch (e) {
+                throw "quit";
+            }
+        };
+    
+        sleep = function(amt) {
+            var i;
+    
+            for(i = 0; i < amt; i = i + 1)
+                yield();
+        };
+
+        thread = .scheduler.Thread(function (this) {
+            try {
+                logging();
+            } catch(e) {
+                //if (e != "exit")
+                .print("chop-chop: " + e);
+            }
+            
+            if (ch.thread != null) {
+                ch.thread = null;
+            }
+        }, this);
+
+        logging = function() {
+
+        };
+
+        return this;
+    };
+
+
+
+
+})
