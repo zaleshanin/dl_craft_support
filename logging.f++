@@ -1,81 +1,150 @@
 .apply(function () {
-    if (.tmp.craft == null) .tmp.craft =.Map();
-
-    if (.tmp.craft.logging == null) .tmp.craft.logging =.Map();
-
-    this = .tmp.craft.logging;
-
     var Axe;
 
     Axe = .get_obj_index(6000);
 
     Axe.onUse = function (axe, ch, str) {
-        if (.tmp.craft.logging == null) throw 'no .tmp.craft.logging';
-        this = .tmp.craft.logging;
+        if(ch.start_logging!=null) ch.start_logging = null;
 
-        //не лес
-        //не вооружен
-        //не стоишь
-        //дерёшься
-        //всё вырубили
+        //уже рубим - прекращаем
+        if(ch.logging!=null) {ch.logging=null;return true;}
 
-        //проверяем/генерим деревца.
+        //2DO не лес/всё вырубили
+        //2DO не вооружен
+        //2DO не стоишь
+        //2DO дерёшься
 
-        //начинаем рубить
-        ch.act('Начинаем производственную гимнастику!');
-        ch.logging = LoggingState(ch, axe);
-        ch.logging.thread.start();
+        ch.start_logging = true;
+
         return true;
     };
 
-    LoggingState = function (ch, axe) {
-        this = .Map();
-        this.ch = ch;
-        this.axe = axe;
+    Axe.postUse = function(axe, ch, str) {
+        try{
+            if(.tmp.craft.logging==null) {
+                ch.act('Ты собирал%Gось|ся|ась срубить дерево, но что-то пошло не так.',ch);
+                throw "logging: no .tmp.craft.logging";
+            }
+            this = .tmp.craft.logging;
 
-        sleepRoom = function (seconds) {
-            var room;
-            room = ch.in_room;
+            if(ch.start_logging==null) return;
+            else ch.start_logging=null;
 
-            .scheduler.sleep(seconds * 4);
+            //2DO проверяем/генерим деревца.
+            //2DO начинаем рубить
+            ch.act('Начинаем производственную гимнастику!');
+            ch.logging=true;
+            var chopsCount; chopsCount = getChopsCount(ch);
+            var sleepInterval; sleepInterval = getSleepInterval(ch);
+            for (i = 0; i < chopsCount; i = i + 1) {
+                sleepRoom(sleepInterval,ch);
+                ch.act('Ты фигачишь %O5 по дереву!', axe);
+            }
+            ch.act('Закончили упражнение!');
+            if(isLoggingSuccessful(ch)) {
+                ch.in_room.echo('Дерево с грохотом падает, правращаясь в качественное бревно!');
+                logToRoom(ch);
+            } else {
+                ch.in_room.echo('Изрубленное в капусту дерево, падая превращается в труху!');
+            }
+        }catch(e){
+            catchMsg(e);
+        }
+        ch.logging=null;
+     };
 
+    if(.tmp.craft==null) .tmp.craft = .Map();
+    if(.tmp.craft.logging==null) .tmp.craft.logging = .Map();
+    this = .tmp.craft.logging;
+    
+    //возвращает количество циклов рубки от одного use
+    getChopsCount = function(ch) {
+        var result;
+        result = 20;
+        if(.buildplot) result = result/5;
+        
+        //2DO наличие скилла (result=result-(result/4))
+
+        //2DO наличие механика (result=result/2)
+
+        return result;
+    };
+
+    getSleepInterval = function(ch) {
+        var result;
+        result = 4;
+
+        if(.buildplot) result=result/2;
+
+        //2DO наличие хасты (result=result/2);
+
+        //2DO наличие механика (result=result/2);
+
+        return result;
+    };
+
+    sleepRoom = function(seconds, ch) {
+        var room;
+        room = ch.in_room;
+
+        var i;
+        for(i = 0; i < seconds*4; i = i + 1) {
+            .scheduler.sleep(1);
+            //помер
             if (ch.dead)
                 throw "sleep: ch is dead";
-            if (room != ch.in_room)
+            //покинул комнату
+            if (room != ch.in_room){
+                ch.act("Ты прекращаешь рубить дерево.");
+                room.ppl.sub(ch).call.act("%1$^C1 прекращает рубить дерево.", ch);
                 throw "sleep: ch left the room";
-            if (!(ch.position &.tables.position_table.stand))
+            }
+            //больше не стоим
+            if (!(ch.position&.tables.position_table.stand)) {
+                ch.act("Ты не можешь продолжать рубить дерево.");
+                ch.recho("%1$^C1 прекращает рубить дерево.", ch);
                 throw "sleep: ch not standing";
-        };
-
-        thread = .scheduler.Thread(function (this) {
-            try {
-                logging();
-                ch.logging = null;
-                .scheduler.yield();
-                ch.act('Закончили упражнение!');
-            } catch (e) {
-                if (e != "exit") {
-                    if (.tmp.epidemy.catchMsg != null)
-                        .tmp.epidemy.catchMsg("chop-chop: " + e);
-                    else
-                        .print("chop-chop: " + e);
-
-                }
             }
-
-            if (ch.thread != null) {
-                ch.thread = null;
+            //передумал
+            if(ch.logging==null) {
+                ch.act("Ты бросаешь это тоскливое занятие.");
+                ch.recho("%1$^C1 решил прекратить рубить дерево.", ch);
+                throw "sleep: second axe use(???)";
             }
-        }, this);
+            //2DO закончились мувы
+            //2DO в комнате закончились деревья
+            
 
-        logging = function () {
-            var i;
-            for (i = 0; i < 3; i = i + 1) {
-                sleepRoom(3);
-                ch.act('Ты фигачишь %O5 по дереву: ЧОП!', axe);
-            }
-        };
-
-        return this;
+        }
     };
+    isLoggingSuccessful = function(ch) {
+        var limit;
+        limit = 4;
+        //2DO skill (limit=limit-2)
+        //2DO mechanic  (limit=1)
+        if(.buildplot) limit=2;
+        if(.number_range(1,limit)!=1) return false;
+        return true;
+    };
+
+    logToRoom = function(ch) {
+        //2DO загрузить в комнату ch.in_room бревно (log)
+        ch.in_room.echo('...но оно бесследно изчезает!');
+    };
+
+    
+    catchMsg = function(e) {
+        var ch;
+        ch = .get_char_world('Zaleshanin');
+        if(ch==null)
+            ch = .get_char_world('Miyamoto');
+
+        if(ch!=null)
+            ch.ptc('logging: '+e);
+        else
+            .print('logging: '+e);
+    };
+   
+
+
 })
