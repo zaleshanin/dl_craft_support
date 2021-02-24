@@ -1,0 +1,81 @@
+.apply(function () {
+    if (.tmp.craft == null) .tmp.craft =.Map();
+
+    if (.tmp.craft.logging == null) .tmp.craft.logging =.Map();
+
+    this = .tmp.craft.logging;
+
+    var Axe;
+
+    Axe = .get_obj_index(6000);
+
+    Axe.onUse = function (axe, ch, str) {
+        if (.tmp.craft.logging == null) throw 'no .tmp.craft.logging';
+        this = .tmp.craft.logging;
+
+        //не лес
+        //не вооружен
+        //не стоишь
+        //дерёшься
+        //всё вырубили
+
+        //проверяем/генерим деревца.
+
+        //начинаем рубить
+        ch.act('Начинаем производственную гимнастику!');
+        ch.logging = LoggingState(ch, axe);
+        ch.logging.thread.start();
+        return true;
+    };
+
+    LoggingState = function (ch, axe) {
+        this = .Map();
+        this.ch = ch;
+        this.axe = axe;
+
+        sleepRoom = function (seconds) {
+            var room;
+            room = ch.in_room;
+
+            .scheduler.sleep(seconds * 4);
+
+            if (ch.dead)
+                throw "sleep: ch is dead";
+            if (room != ch.in_room)
+                throw "sleep: ch left the room";
+            if (!(ch.position &.tables.position_table.stand))
+                throw "sleep: ch not standing";
+        };
+
+        thread = .scheduler.Thread(function (this) {
+            try {
+                logging();
+                ch.logging = null;
+                .scheduler.yield();
+                ch.act('Закончили упражнение!');
+            } catch (e) {
+                if (e != "exit") {
+                    if (.tmp.epidemy.catchMsg != null)
+                        .tmp.epidemy.catchMsg("chop-chop: " + e);
+                    else
+                        .print("chop-chop: " + e);
+
+                }
+            }
+
+            if (ch.thread != null) {
+                ch.thread = null;
+            }
+        }, this);
+
+        logging = function () {
+            var i;
+            for (i = 0; i < 3; i = i + 1) {
+                sleepRoom(3);
+                ch.act('Ты фигачишь %O5 по дереву: ЧОП!', axe);
+            }
+        };
+
+        return this;
+    };
+})
