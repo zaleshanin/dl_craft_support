@@ -1,15 +1,27 @@
 .apply(function () {
+    if(.tmp.craft==null) .tmp.craft = .Map();
+    if(.tmp.craft.logging==null) .tmp.craft.logging = .Map();
+    this = .tmp.craft.logging;
+    
+    //всякие переменные для скрипта
+    TreeLog = .get_obj_index(28037); //бревно - результат рубки
+    
+    //топор, и его onUse, postUse
     var Axe;
-
     Axe = .get_obj_index(6000);
-
     Axe.onUse = function (axe, ch, str) {
         if(ch.start_logging!=null) ch.start_logging = null;
 
         //уже рубим - прекращаем
         if(ch.logging!=null) {ch.logging=null;return true;}
 
-        //2DO не лес/всё вырубили
+        //не лес/всё вырубили
+        if(ch.in_room.sector_type!=.tables.sector_table.forest) {
+            ch.act('Здесь нечего рубить. Ты с сожалением вздыхаешь.');
+            ch.recho("%1$^C1 с сожалением вздыхает держа в руках %2$O4.", ch, axe);
+            return true;
+        }
+
         //2DO не вооружен
         //2DO не стоишь
         //2DO дерёшься
@@ -18,7 +30,6 @@
 
         return true;
     };
-
     Axe.postUse = function(axe, ch, str) {
         try{
             if(.tmp.craft.logging==null) {
@@ -39,10 +50,12 @@
             for (i = 0; i < chopsCount; i = i + 1) {
                 sleepRoom(sleepInterval,ch);
                 ch.act('Ты фигачишь %O5 по дереву!', axe);
+                //2DO отнимаем ману
+                //2DO наносим повреждением лесопосадкам
             }
             ch.act('Закончили упражнение!');
             if(isLoggingSuccessful(ch)) {
-                ch.in_room.echo('Дерево с грохотом падает, правращаясь в качественное бревно!');
+                ch.in_room.echo('Дерево с грохотом падает, превращаясь в качественное бревно!');
                 logToRoom(ch);
             } else {
                 ch.in_room.echo('Изрубленное в капусту дерево, падая превращается в труху!');
@@ -51,12 +64,10 @@
             catchMsg(e);
         }
         ch.logging=null;
-     };
+    };
 
-    if(.tmp.craft==null) .tmp.craft = .Map();
-    if(.tmp.craft.logging==null) .tmp.craft.logging = .Map();
-    this = .tmp.craft.logging;
-    
+    //Всякие вспомонательные функции:
+
     //возвращает количество циклов рубки от одного use
     getChopsCount = function(ch) {
         var result;
@@ -128,8 +139,8 @@
     };
 
     logToRoom = function(ch) {
-        //2DO загрузить в комнату ch.in_room бревно (log)
-        ch.in_room.echo('...но оно бесследно изчезает!');
+        //ch.in_room.echo('...но оно бесследно изчезает!');
+        TreeLog.create().obj_to_room(ch.in_room);
     };
 
     
