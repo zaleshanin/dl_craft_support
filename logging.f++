@@ -23,6 +23,7 @@
         }
 
         //не в инвентаре
+        //TODO - подымаем!!!
         if(axe.getCarrier()!=ch) {
             ch.act('Возможно %1$O4 следует поднять.', axe);
             ch.recho("%1$^C1 дотрагивается до %2$O2.", ch, axe);
@@ -30,6 +31,7 @@
         }
 
         //не вооружен
+        //TODO - вооружаемся
         if(axe.wear_loc!='wield') {
             ch.act('%1$^O5 следует вооружиться.', axe);
             return true;
@@ -62,7 +64,7 @@
             var sleepInterval; sleepInterval = getSleepInterval(ch);
             var i;
             for (i = 0; i < chopsCount; i = i + 1) {
-                sleepRoom(sleepInterval,ch);
+                sleepRoom(sleepInterval,ch,axe);
                 ch.act('Ты фигачишь %O5 по дереву!', axe);
                 //2DO отнимаем ману
                 //2DO наносим повреждением лесопосадкам
@@ -78,6 +80,10 @@
             catchMsg(e);
         }
         ch.logging=null;
+    };
+    //чар снимает топор - прекращаем рубить дерево
+    Axe.onRemove = function (axe, ch) {
+        if(ch.logging!=null) {ch.logging=null;}
     };
 
     //Всякие вспомонательные функции:
@@ -108,13 +114,15 @@
         return result;
     };
 
-    sleepRoom = function(seconds, ch) {
+    sleepRoom = function(seconds, ch, axe) {
         var room;
         room = ch.in_room;
 
         var i;
         for(i = 0; i < seconds*4; i = i + 1) {
             .scheduler.sleep(1);
+            //2DO закончились мувы
+            //2DO в комнате закончились деревья
             //помер
             if (ch.dead)
                 throw "sleep: ch is dead";
@@ -132,15 +140,16 @@
             }
             //передумал
             if(ch.logging==null) {
-                ch.act("Ты бросаешь это тоскливое занятие.");
-                ch.recho("%1$^C1 решил прекратить рубить дерево.", ch);
-                throw "sleep: second axe use(???)";
+                ch.act("Ты прекращаешь рубить дерево.");
+                ch.recho("%1$^C1 прекращает рубить дерево.", ch);
+                throw "sleep: second axe use or axe is removed";
             }
-            //2DO закончились мувы
-            //2DO в комнате закончились деревья
-            //2DO изчез топор в руках
-            
-
+            //изчез топор из рук
+            if(ch.get_eq_char('wield')!=axe) {
+                ch.act("Ты не можешь рубить деревья не вооружившись топором.");
+                room.ppl.sub(ch).call.act("%1$^C1 прекращает рубить дерево.", ch);
+                throw "sleep: axe is lost";
+            }
         }
     };
     isLoggingSuccessful = function(ch) {
