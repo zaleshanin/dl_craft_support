@@ -7,8 +7,8 @@
     TreeLog = .get_obj_index(28037); //бревно - результат рубки
     
     //топор, и его onUse, postUse
-    var Axe;
-    Axe = .get_obj_index(6000);
+    var Axe; //просто переменная
+    Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
     Axe.onUse = function (axe, ch, str) {
         if(ch.start_logging!=null) ch.start_logging = null;
 
@@ -65,7 +65,7 @@
             else ch.start_logging=null;
 
             //TODO проверяем/генерим деревца.
-            
+
             //TODO и вдруг... ЭНТ!
             //TODO начинаем рубить
             ch.act('Начинаем производственную гимнастику!'); //TODO убрать
