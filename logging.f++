@@ -37,8 +37,17 @@
             return true;
         }
 
-        //2DO не стоишь
-        //2DO дерёшься
+        //дерёшься
+        if (ch.position&.tables.position_table.fight) {
+            ch.act('Сейчас ты и так делаешь %1$^O5 всё что можешь.', axe);
+            return true;
+        }
+
+         //не стоишь
+        if (!(ch.position&.tables.position_table.stand)) {
+            ch.act('Рубить деревья можно только твёрда стоя на ногах.');
+            return true;
+        }
 
         ch.start_logging = true;
 
@@ -55,26 +64,27 @@
             if(ch.start_logging==null) return;
             else ch.start_logging=null;
 
-            //2DO проверяем/генерим деревца.
-            //2DO и вдруг... ЭНТ!
-            //2DO начинаем рубить
-            ch.act('Начинаем производственную гимнастику!');
+            //TODO проверяем/генерим деревца.
+            
+            //TODO и вдруг... ЭНТ!
+            //TODO начинаем рубить
+            ch.act('Начинаем производственную гимнастику!'); //TODO убрать
             ch.logging=true;
             var chopsCount; chopsCount = getChopsCount(ch);
             var sleepInterval; sleepInterval = getSleepInterval(ch);
             var i;
             for (i = 0; i < chopsCount; i = i + 1) {
                 sleepRoom(sleepInterval,ch,axe);
-                ch.act('Ты фигачишь %O5 по дереву!', axe);
-                //2DO отнимаем ману
-                //2DO наносим повреждением лесопосадкам
+                ch.act('Ты фигачишь %O5 по дереву!', axe);//TODO заменить фразу
+                //TODO отнимаем ману
+                //TODO наносим повреждением лесопосадкам
             }
-            ch.act('Закончили упражнение!');
+            ch.act('Закончили упражнение!');//TODO убрать
             if(isLoggingSuccessful(ch)) {
                 ch.in_room.echo('Дерево с грохотом падает, превращаясь в качественное бревно!');
                 logToRoom(ch);
             } else {
-                ch.in_room.echo('Изрубленное в капусту дерево, падая превращается в труху!');
+                ch.in_room.echo('Изрубленное в капусту дерево, падая превращается в кучу бесполезных щепок!');
             }
         }catch(e){
             catchMsg(e);
@@ -94,9 +104,9 @@
         result = 20;
         if(.buildplot) result = result/5;
         
-        //2DO наличие скилла (result=result-(result/4))
+        //TODO наличие скилла (result=result-(result/4))
 
-        //2DO наличие механика (result=result/2)
+        //TODO наличие механика (result=result/2)
 
         return result;
     };
@@ -107,9 +117,9 @@
 
         if(.buildplot) result=result/2;
 
-        //2DO наличие хасты (result=result/2);
+        //TODO наличие хасты (result=result/2);
 
-        //2DO наличие механика (result=result/2);
+        //TODO наличие механика (result=result/2);
 
         return result;
     };
@@ -121,8 +131,9 @@
         var i;
         for(i = 0; i < seconds*4; i = i + 1) {
             .scheduler.sleep(1);
-            //2DO закончились мувы
-            //2DO в комнате закончились деревья
+            //TODO закончились мувы
+            //TODO в комнате закончились деревья
+
             //помер
             if (ch.dead)
                 throw "sleep: ch is dead";
@@ -132,7 +143,7 @@
                 room.ppl.sub(ch).call.act("%1$^C1 прекращает рубить дерево.", ch);
                 throw "sleep: ch left the room";
             }
-            //больше не стоим
+            //больше не стоим (деремся)
             if (!(ch.position&.tables.position_table.stand)) {
                 ch.act("Ты не можешь продолжать рубить дерево.");
                 ch.recho("%1$^C1 прекращает рубить дерево.", ch);
@@ -155,8 +166,8 @@
     isLoggingSuccessful = function(ch) {
         var limit;
         limit = 4;
-        //2DO skill (limit=limit-2)
-        //2DO mechanic  (limit=1)
+        //TODO skill (limit=limit-2)
+        //TODO mechanic  (limit=1)
         if(.buildplot) limit=2;
         if(.number_range(1,limit)!=1) return false;
         return true;
