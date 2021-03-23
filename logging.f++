@@ -60,6 +60,7 @@
             ch.logging=true;
             var chopsCount; chopsCount = getChopsCount(ch);
             var sleepInterval; sleepInterval = getSleepInterval(ch);
+            var i;
             for (i = 0; i < chopsCount; i = i + 1) {
                 sleepRoom(sleepInterval,ch);
                 ch.act('Ты фигачишь %O5 по дереву!', axe);
