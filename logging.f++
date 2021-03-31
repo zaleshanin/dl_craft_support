@@ -65,6 +65,9 @@
             else ch.start_logging=null;
 
             //TODO проверяем/генерим деревца.
+            if(ch.in_room.logging==null) {
+                loggingForestRoomInit(ch.in_room);
+            }
 
             //TODO и вдруг... ЭНТ!
             //TODO начинаем рубить
@@ -76,8 +79,10 @@
             for (i = 0; i < chopsCount; i = i + 1) {
                 sleepRoom(sleepInterval,ch,axe);
                 ch.act('Ты фигачишь %O5 по дереву!', axe);//TODO заменить фразу
-                //TODO отнимаем ману
+                //TODO отнимаем мувы
                 //TODO наносим повреждением лесопосадкам
+
+                //"отец слышишь рубит?"
             }
             ch.act('Закончили упражнение!');//TODO убрать
             if(isLoggingSuccessful(ch)) {
@@ -124,6 +129,48 @@
         return result;
     };
 
+    isLoggingSuccessful = function(ch) {
+        var limit;
+        limit = 4;
+        //TODO skill (limit=limit-2)
+        //TODO mechanic  (limit=1)
+        if(.buildplot) limit=2;
+        if(.number_range(1,limit)!=1) return false;
+        return true;
+    };
+
+    logToRoom = function(ch) {
+        //ch.in_room.echo('...но оно бесследно изчезает!');
+        TreeLog.create().obj_to_room(ch.in_room);
+    };
+
+    //инициализация комнаты с деревьями
+    loggingForestRoomInit = function(room) {
+        this = room;
+        if(logging!=null) throw('logging: room already inited');
+
+        logging = .Map();
+
+        logging.trees_health = 400; //TODO рандом?
+
+        //востановление деревьев. чистка полей комнаты после полного востановления
+        onSpec = function() {
+            if(logging.tree_health = 400) {
+                .tmp.craft.logging.loggingForestRoomClean(this);
+                return;
+            }
+            logging.trees_health = logging.trees_health + 1; // 400 * 4 = 1600 (востановление ~26 минут)
+        };
+    };
+
+    //чистим комнату с деревьями
+    loggingForestRoomClean = function(room) {
+        this = room;
+        logging = null;
+        onSpec = null;
+    };
+
+    //проверки, не стоит ли прервать наше увлекательное занятие
     sleepRoom = function(seconds, ch, axe) {
         var room;
         room = ch.in_room;
@@ -163,21 +210,6 @@
             }
         }
     };
-    isLoggingSuccessful = function(ch) {
-        var limit;
-        limit = 4;
-        //TODO skill (limit=limit-2)
-        //TODO mechanic  (limit=1)
-        if(.buildplot) limit=2;
-        if(.number_range(1,limit)!=1) return false;
-        return true;
-    };
-
-    logToRoom = function(ch) {
-        //ch.in_room.echo('...но оно бесследно изчезает!');
-        TreeLog.create().obj_to_room(ch.in_room);
-    };
-
     
     catchMsg = function(e) {
         var ch;
