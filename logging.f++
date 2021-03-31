@@ -82,12 +82,14 @@
                 //TODO отнимаем мувы
                 //TODO наносим повреждением лесопосадкам
 
-                //"отец слышишь рубит?"
+                //TODO "отец слышишь рубит?"
+                //TODO аффект когда всё вырублено (подробности в трелло-карточка рубки, феневый чат)
+                //TODO v2 выгоднять из камуфляжа всех кто в комнате ))
             }
             ch.act('Закончили упражнение!');//TODO убрать
             if(isLoggingSuccessful(ch)) {
                 ch.in_room.echo('Дерево с грохотом падает, превращаясь в качественное бревно!');
-                logToRoom(ch);
+                logToRoom(ch.in_room);
             } else {
                 ch.in_room.echo('Изрубленное в капусту дерево, падая превращается в кучу бесполезных щепок!');
             }
@@ -139,9 +141,21 @@
         return true;
     };
 
-    logToRoom = function(ch) {
+    logToRoom = function(room) {
         //ch.in_room.echo('...но оно бесследно изчезает!');
-        TreeLog.create().obj_to_room(ch.in_room);
+        TreeLog.create().obj_to_room(room);
+    };
+
+    //получаем количество деревьев в комнате
+    getRoomTreesQuantity = function(room) {
+        //TODO v2 количество в зависимости от наличия деревьев в окружающих комнатах, плюс рандом
+        return 4;
+    };
+    //количество востанавливаемого деревом hp за раунд 
+    getTreeRestoreHp = function(room) {
+        //TODO v2 не востанавливать если нет деревьев в соседних клетках
+        //TODO v2 влияние на востановление внешних факторов (лужа, огонь...)
+        return 1;
     };
 
     //инициализация комнаты с деревьями
@@ -151,15 +165,62 @@
 
         logging = .Map();
 
-        logging.trees_health = 400; //TODO рандом?
+        //TODO рандом?
+        logging.max_trees_health = .tmp.craft.logging.getRoomTreesQuantity(room) * 100; //количество деревьев * на hp дерева 
+        logging.trees_health = logging.max_trees_health;
+        logging.sprouts_health = 0; //hp побега - при достижении 100 прибавляется к hp деревьев (если есть)
 
         //востановление деревьев. чистка полей комнаты после полного востановления
         onSpec = function() {
-            if(logging.tree_health = 400) {
+            //TODO один onSpec на все леса!!!
+
+            //лес востановлен - чистим
+            if(logging.trees_health == logging.max_trees_health) {
                 .tmp.craft.logging.loggingForestRoomClean(this);
                 return;
             }
-            logging.trees_health = logging.trees_health + 1; // 400 * 4 = 1600 (востановление ~26 минут)
+            // востановление 400hp по 1hp в раз 4 секунды = 1600 секунд (~26 минут)
+            var restore;
+            restore = .tmp.craft.logging.getTreeRestoreHp(this); 
+            var tree_quantity;
+            tree_quantity = logging.trees_health / 100; //количество уцелевших деревьев
+            
+            //TODO добавить debug чтоб проконтролировать рост деревьев
+            
+            //если дерево срублено не до конца - востанавливаем его
+            if(tree_quantity > 0 && logging.trees_health % 100 > 0) {
+                logging.trees_health = logging.trees_health + restore; 
+                if(logging.trees_health / 100 > tree_quantity) {
+                    tree_quantity = logging.trees_health / 100;
+                    restore = logging.trees_health % 100;
+                } else {
+                    restore = 0;
+                }
+            }
+            
+            //когда дерево востановлено - ростим побеги
+            if(logging.trees_health < logging.max_trees_health) {
+                logging.sprouts_health = logging.sprouts_health + restore;
+                //если деревья вырублены не все - добавляем каждые 100 к деревьям
+                if(tree_quantity>0) {
+                    if(logging.sprouts_health>=100) {
+                        restore = logging.sprouts_health % 100;
+                        logging.trees_health = logging.trees_health + ((logging.sprouts_health / 100) * 100);
+                        logging.sprouts_health = restore;
+                    } 
+                } else { //если все деревья вырублены
+                    //если ростков уже выросло как было леса изначально - востаналиваем
+                    if(logging.sprouts_health>=logging.max_trees_health) {
+                        logging.trees_health = logging.max_trees_health;
+                        logging.sprouts_health = 0;
+                    }
+                }
+            } 
+        };
+        //добавляем строчки о сотоянии леса
+        onDescr = function(ch, description) {
+            //TODO изменить описание после вырубки
+            return description;
         };
     };
 
@@ -168,6 +229,7 @@
         this = room;
         logging = null;
         onSpec = null;
+        onDescr = null;
     };
 
     //проверки, не стоит ли прервать наше увлекательное занятие
