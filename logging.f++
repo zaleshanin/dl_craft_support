@@ -2,11 +2,14 @@
     if(.tmp.craft==null) .tmp.craft = .Map();
     if(.tmp.craft.logging==null) .tmp.craft.logging = .Map();
     this = .tmp.craft.logging;
-    
-    //всякие переменные для скрипта
+
+    //всякие переменные для скрипта:
+    if(LoggingForestList==null) 
+        LoggingForestList = .List(); //список для хранения комнат где велась лесозаготовка
+
     TreeLog = .get_obj_index(28037); //бревно - результат рубки
-    MaxTreeHP = 100;
-    
+    MaxTreeHP = 100; 
+
     //топор, и его onUse, postUse
     var Axe; //просто переменная
     Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
@@ -88,6 +91,9 @@
             if(ch.in_room.logging.trees_health % MaxTreeHP > 0) 
                 current_tree_quantity = current_tree_quantity + 1;
             
+            if(.buildplot) 
+                debug(.fmt("craft_logging: [%d:%s]before_status: max_hp->%d trees->%d hp->%d sprouts->%d",
+                ch.in_room.vnum, ch.in_room.name, ch.in_room.logging.max_trees_health, current_tree_quantity, ch.in_room.logging.trees_health, ch.in_room.logging.sprouts_health));
             for( ; ch.in_room.logging.trees_health > (current_tree_quantity-1)*MaxTreeHP ; ) {
                 sleepRoom(sleepInterval,ch,axe);
 
@@ -96,6 +102,9 @@
                 //TODO аффект когда всё вырублено (подробности в трелло-карточка рубки, феневый чат)
                 //TODO v2 выгоднять из камуфляжа всех кто в комнате ))
             }
+            if(.buildplot) 
+                debug(.fmt("craft_logging: [%d:%s]after_status: max_hp->%d hp->%d sprouts->%d",
+                ch.in_room.vnum, ch.in_room.name, ch.in_room.logging.max_trees_health, ch.in_room.logging.trees_health, ch.in_room.logging.sprouts_health));
             ch.act('Закончили упражнение!');//TODO убрать
 
             if(isLoggingSuccessful(ch)) {
@@ -153,24 +162,32 @@
     };
     //делаем один удар(попытку)
     makeOneHit = function(ch,axe) {
-        //удар расходует мувы
+        //считаем потраченные мувы
         var move_cost;
         move_cost = .number_range((ch.perm_move / 50) + 1, (ch.perm_move / 20) + 1); //расход мувов на один удар
+        if(.buildplot) debug(.fmt("craft_logging: makeOneHit: cost:%d rest_moves:%d ", move_cost, ch.move-move_cost));
+        //удар расходует мувы
         if(move_cost <= ch.move) {
             ch.move =  ch.move - move_cost;
         } else {
             ch.act("Ты слишком устал, чтобы рубить деревья.");
             ch.recho("%1$^C1 прекращает рубить дерево.", ch);
-            throw "logging: ch not enough moves";
+            throw "craft_logging: ch not enough moves";
         }
 
+        //считаем нанесенные повреждения
+        var damage;
+        damage = getOneHitDamage(ch,axe);
         if(isHitSuccess(ch)) {
-            ch.in_room.logging.trees_health = ch.in_room.logging.trees_health - getOneHitDamage(ch,axe);
-            ch.act('Ты фигачишь %O5 по дереву!', axe);//TODO заменить фразу
+            //наносим повреждением лесопосадкам
+            ch.in_room.logging.trees_health = ch.in_room.logging.trees_health - damage;
+            
+            //TODO v2 на разную силу повреждения разные сообщения
+            if(damage>0)
+                ch.act('Ты фигачишь %O5 по дереву!', axe);//TODO заменить фразу
         }
+        if(.buildplot) debug(.fmt("craft_logging: makeOneHit: demage:%d rest_trees_helth:%d ", move_cost, ch.in_room.logging.trees_health));
         
-        //TODO отнимаем мувы
-        //TODO наносим повреждением лесопосадкам
 
         //TODO "отец слышишь рубит?"
     };
@@ -220,53 +237,14 @@
         logging.trees_health = logging.max_trees_health;
         logging.sprouts_health = 0; //hp побега - при достижении 100 прибавляется к hp деревьев (если есть)
 
-        //востановление деревьев. чистка полей комнаты после полного востановления
-        onSpec = function() {
-            //TODO один onSpec на все леса!!!
-
-            //лес востановлен - чистим
-            if(logging.trees_health == logging.max_trees_health) {
-                .tmp.craft.logging.loggingForestRoomClean(this);
-                return;
-            }
-            // востановление 400hp по 1hp в раз 4 секунды = 1600 секунд (~26 минут)
-            var restore;
-            restore = .tmp.craft.logging.getTreeRestoreHp(this); 
-            var tree_quantity;
-            tree_quantity = logging.trees_health / .tmp.craft.logging.MaxTreeHP; //количество уцелевших деревьев
-            
-            //TODO добавить debug чтоб проконтролировать рост деревьев
-            
-            //если дерево срублено не до конца - востанавливаем его
-            if(tree_quantity > 0 && logging.trees_health % .tmp.craft.logging.MaxTreeHP > 0) {
-                logging.trees_health = logging.trees_health + restore; 
-                if(logging.trees_health / .tmp.craft.logging.MaxTreeHP > tree_quantity) {
-                    tree_quantity = logging.trees_health / .tmp.craft.logging.MaxTreeHP;
-                    restore = logging.trees_health % .tmp.craft.logging.MaxTreeHP;
-                } else {
-                    restore = 0;
-                }
-            }
-            
-            //когда дерево востановлено - ростим побеги
-            if(logging.trees_health < logging.max_trees_health) {
-                logging.sprouts_health = logging.sprouts_health + restore;
-                //если деревья вырублены не все - добавляем каждые .tmp.craft.logging.MaxTreeHP (100) к деревьям
-                if(tree_quantity>0) {
-                    if(logging.sprouts_health>=.tmp.craft.logging.MaxTreeHP) {
-                        restore = logging.sprouts_health % .tmp.craft.logging.MaxTreeHP;
-                        logging.trees_health = logging.trees_health + ((logging.sprouts_health / .tmp.craft.logging.MaxTreeHP) * .tmp.craft.logging.MaxTreeHP);
-                        logging.sprouts_health = restore;
-                    } 
-                } else { //если все деревья вырублены
-                    //если ростков уже выросло как было леса изначально - востаналиваем
-                    if(logging.sprouts_health>=logging.max_trees_health) {
-                        logging.trees_health = logging.max_trees_health;
-                        logging.sprouts_health = 0;
-                    }
-                }
-            } 
-        };
+        //заносим в список свежезаиниченую комнату
+        if(!.tmp.craft.logging.LoggingForestList.has(room)) {
+            .tmp.craft.logging.LoggingForestList.push_back(room);
+        }
+        //назначаем комнату главной по обработке списка комнат лесозаготовки
+        if(.tmp.craft.logging.LoggingForestList.size()==1) {
+            .tmp.craft.logging.makeMainRoom(this);
+        }
         //добавляем строчки о сотоянии леса
         onDescr = function(ch, description) {
             //TODO изменить описание после вырубки
@@ -274,12 +252,82 @@
         };
     };
 
+    //востановление деревьев. чистка полей комнаты после полного востановления
+    loggingRoomsOnSpec = function() {
+        //один onSpec на все леса!!!
+        .tmp.craft.logging.LoggingForestList.forEach(
+            function(){
+                var debug;
+                debug = .tmp.craft.logging.debug;
+                //лес востановлен - чистим
+                if(logging.trees_health == logging.max_trees_health) {
+                    if(.buildplot) debug(.fmt("craft_logging: room.onSpec: restored %d:%s", this.vnum, this.name));
+                    .tmp.craft.logging.loggingForestRoomClean(this);
+                    return;
+                }
+                // востановление 400hp по 1hp в раз 4 секунды = 1600 секунд (~26 минут)
+                var restore;
+                restore = .tmp.craft.logging.getTreeRestoreHp(this); 
+                var tree_quantity;
+                tree_quantity = logging.trees_health / .tmp.craft.logging.MaxTreeHP; //количество уцелевших деревьев
+                if(logging.trees_health / .tmp.craft.logging.MaxTreeHP > 0) tree_quantity = tree_quantity + 1;
+
+                if(.buildplot) 
+                    debug(.fmt("craft_logging: [%d:%s]start_status: max_hp->%d trees->%d hp->%d sprouts->%d",
+                    this.vnum, this.name, logging.max_trees_health, tree_quantity, logging.trees_health, logging.sprouts_health));
+                
+                //если дерево срублено не до конца - востанавливаем его
+                if(tree_quantity > 0 && logging.trees_health % .tmp.craft.logging.MaxTreeHP > 0) {
+                    logging.trees_health = logging.trees_health + restore; 
+                    if(logging.trees_health / .tmp.craft.logging.MaxTreeHP > tree_quantity) {
+                        tree_quantity = logging.trees_health / .tmp.craft.logging.MaxTreeHP;
+                        restore = logging.trees_health % .tmp.craft.logging.MaxTreeHP;
+                    } else {
+                        restore = 0;
+                    }
+                }
+                
+                //когда дерево востановлено - ростим побеги
+                if(logging.trees_health < logging.max_trees_health) {
+                    logging.sprouts_health = logging.sprouts_health + restore;
+                    //если деревья вырублены не все - добавляем каждые .tmp.craft.logging.MaxTreeHP (100) к деревьям
+                    if(tree_quantity>0) {
+                        if(logging.sprouts_health>=.tmp.craft.logging.MaxTreeHP) {
+                            restore = logging.sprouts_health % .tmp.craft.logging.MaxTreeHP;
+                            logging.trees_health = logging.trees_health + ((logging.sprouts_health / .tmp.craft.logging.MaxTreeHP) * .tmp.craft.logging.MaxTreeHP);
+                            logging.sprouts_health = restore;
+                        } 
+                    } else { //если все деревья вырублены
+                        //если ростков уже выросло как было леса изначально - востаналиваем
+                        if(logging.sprouts_health>=logging.max_trees_health) {
+                            logging.trees_health = logging.max_trees_health;
+                            logging.sprouts_health = 0;
+                        }
+                    }
+                } 
+                if(.buildplot) 
+                debug(.fmt("craft_logging: [%d:%s]finish_status: max_hp->%d trees->%d hp->%d sprouts->%d",
+                    this.vnum, this.name, logging.max_trees_health, tree_quantity, logging.trees_health, logging.sprouts_health));
+
+            }
+        );
+    };
+
+    makeMainRoom = function (room) {
+        room.onSpec = function() {.tmp.craft.logging.loggingRoomsOnSpec();};
+    };
+
     //чистим комнату с деревьями
     loggingForestRoomClean = function(room) {
-        this = room;
-        logging = null;
-        onSpec = null;
-        onDescr = null;
+        room.logging = null;
+        .tmp.craft.logging.LoggingForestList.sub(room);
+        room.onDescr = null;
+        if(room.onSpec!=null) {
+            room.onSpec = null;
+            if(.tmp.craft.logging.LoggingForestList.size()!=0) {
+                .tmp.craft.logging.makeMainRoom(.tmp.craft.logging.LoggingForestList.back());
+            }
+        }
     };
 
     //проверки, не стоит ли прервать наше увлекательное занятие
@@ -290,7 +338,6 @@
         var i;
         for(i = 0; i < seconds*4; i = i + 1) {
             .scheduler.sleep(1);
-            //TODO в комнате закончились деревья
 
             //помер
             if (ch.dead)
@@ -333,7 +380,15 @@
         else
             .print('logging: '+e);
     };
-   
 
+    debug = function(str) {
+        //if(!.buildplot) return;
+        var ch;
+        ch = .get_char_world('zaleshanin');
+        if(ch==null)
+            ch = .get_char_world('miyamoto');
 
+        if(ch!=null) 
+            ch.act('debug:%s',str);
+    };
 })
