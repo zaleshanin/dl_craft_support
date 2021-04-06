@@ -247,12 +247,17 @@
 
         //TODO
         //количество оставшихся деревьев
+        var trees_quantity; trees_quantity = getTreesQuantity(room);
+        
         //количество срубленных деревьев (пней)
+        var stumps_quantity; stumps_quantity = (room.max_trees_health / MaxTreeHP) - trees_quantity;
+
         //наличие недорубленного дерева
-        //процент срубленности дерева (остаток_Хп_дерева/максХпДерева)
+        var chopped_tree; chopped_tree = ((room.trees_health % MaxTreeHP)*100)/MaxTreeHP; //процент недорубленности 
+
         //процент готовности росткров ((хп_росткров/пни)/максХпДерева)
 
-        //TODO изменить описание после вырубки
+        //TODO изменить описание после вырубки в зависимости от переменных
         desct="";
 
 
