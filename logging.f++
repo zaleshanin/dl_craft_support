@@ -124,20 +124,6 @@
     };
 
     //Всякие вспомонательные функции:
-
-/*    //возвращает количество циклов рубки от одного use
-    getChopsCount = function(ch) {
-        var result;
-        result = 20;
-        if(.buildplot) result = result/5;
-        
-        //TODO наличие скилла (result=result-(result/4))
-
-        //TODO наличие механика (result=result/2)
-
-        return result;
-    };
-*/
     getSleepInterval = function(ch) {
         var result;
         result = 4;
@@ -247,10 +233,31 @@
         }
         //добавляем строчки о сотоянии леса
         onDescr = function(ch, description) {
-            //TODO изменить описание после вырубки
-            return description;
+            return description + .tmp.craft.logging.getAfterLoggingForestDescription(this);
         };
     };
+
+    //генерим описание вырубленного/востаравливающегося леса
+    getAfterLoggingForestDescription = function(room) {
+        if(room.logging==null) return "";
+        
+        this = .tmp.craft.logging;
+            
+        var descr;
+
+        //TODO
+        //количество оставшихся деревьев
+        //количество срубленных деревьев (пней)
+        //наличие недорубленного дерева
+        //процент срубленности дерева (остаток_Хп_дерева/максХпДерева)
+        //процент готовности росткров ((хп_росткров/пни)/максХпДерева)
+
+        //TODO изменить описание после вырубки
+        desct="";
+
+
+        return descr;
+    }
 
     //востановление деревьев. чистка полей комнаты после полного востановления
     loggingRoomsOnSpec = function() {
@@ -344,6 +351,8 @@
             room.onSpec = null;
             if(.tmp.craft.logging.LoggingForestList.size()!=0) {
                 .tmp.craft.logging.makeMainRoom(.tmp.craft.logging.LoggingForestList.back());
+            } else {
+                .tmp.craft.logging.debug("craft_logging: all room restored.");
             }
         }
     };
