@@ -7,12 +7,14 @@
     if(LoggingForestList==null) 
         LoggingForestList = .List(); //список для хранения комнат где велась лесозаготовка
 
-    TreeLog = .get_obj_index(28037); //бревно - результат рубки
+    //TreeLog = .get_obj_index(28037); //бревно - результат рубки
+    TreeLog = .get_obj_index(3377); //бревно - результат рубки
     MaxTreeHP = 100; 
 
     //топор, и его onUse, postUse
     var Axe; //просто переменная
-    Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
+    //Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
+    Axe = .get_obj_index(3026); //присваиваем переменной ссылку на прототип топора
     Axe.onUse = function (axe, ch, str) {
         if(ch.start_logging!=null) ch.start_logging = null;
 
@@ -262,15 +264,57 @@
 
 
         return descr;
-    }
+    };
+/* [Apr 21 22:31:10]:W: fenia fsck:  unreferenced function  cs: 18 (logging) line: 428 (fn:25)
+[Apr 21 22:31:10]:W: fenia fsck: 5 unref objects/functions cleared
+[Apr 21 22:31:10]:N: [wiznet:ticks] AREA & ROOM TICK!
+[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
+    in cs #18 (logging) line 275: logging
+    called from cs #18 (logging) line 335
+    called from RegList::forEach
+    called from cs #18 (logging) line 349
+    called from <native>
+    Ya-ma-ta!
 
+[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
+    in cs #18 (logging) line 275: logging
+    called from cs #18 (logging) line 335
+    called from RegList::forEach
+    called from cs #18 (logging) line 349
+    called from <native>
+    Ya-ma-ta!
+
+[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
+    in cs #18 (logging) line 275: logging
+    called from cs #18 (logging) line 335
+    called from RegList::forEach
+    called from cs #18 (logging) line 349
+    called from <native>
+    Ya-ma-ta!
+
+[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
+    in cs #18 (logging) line 275: logging
+    called from cs #18 (logging) line 335
+    called from RegList::forEach
+    called from cs #18 (logging) line 349
+    called from <native>
+    Ya-ma-ta!
+
+[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
+    in cs #18 (logging) line 275: logging
+    called from cs #18 (logging) line 335
+    called from RegList::forEach
+    called from cs #18 (logging) line 349
+    called from <native>
+    Ya-ma-ta!
+*/
     //востановление деревьев. чистка полей комнаты после полного востановления
     loggingRoomsOnSpec = function() {
         //один onSpec на все леса!!!
         .tmp.craft.logging.LoggingForestList.forEach(
             function(){
                 try{
-                    if(logging==null) {
+                    if(this.logging==null) {
                         //бракованая комната в списке (нет rt поля logging)
                         .tmp.craft.logging.LoggingForestList.sub(this);
                         throw("craft_logging: "+this.vnum+":"+this.name+" -> empty rt logging");
@@ -278,7 +322,7 @@
                     var debug;
                     debug = .tmp.craft.logging.debug;
                     //лес востановлен - чистим
-                    if(logging.trees_health == logging.max_trees_health) {
+                    if(this.logging.trees_health == logging.max_trees_health) {
                         if(.buildplot) debug(.fmt("craft_logging: room.onSpec: restored %d:%s", this.vnum, this.name));
                         .tmp.craft.logging.loggingForestRoomClean(this);
                         return;
