@@ -156,6 +156,8 @@
     };
     //делаем один удар(попытку)
     makeOneHit = function(ch,axe) {
+        this = .tmp.craft.logging;
+
         //считаем потраченные мувы
         var move_cost;
         move_cost = .number_range((ch.perm_move / 50) + 1, (ch.perm_move / 20) + 1); //расход мувов на один удар
@@ -173,7 +175,8 @@
         var damage;
         damage = getOneHitDamage(ch,axe);
         if(isHitSuccess(ch)) {
-
+            if(!ch.in_room.isAffected(LoggingSkill.name)) ch.in_room.affectAdd(LoggingSkill.name);
+            
             //наносим повреждением лесопосадкам
             ch.in_room.logging.trees_health = ch.in_room.logging.trees_health - damage;
             
