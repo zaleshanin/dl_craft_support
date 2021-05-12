@@ -4,17 +4,23 @@
     this = .tmp.craft.logging;
 
     //всякие переменные для скрипта:
+    /*
     if(LoggingForestList==null) 
         LoggingForestList = .List(); //список для хранения комнат где велась лесозаготовка
+    */
 
-    //TreeLog = .get_obj_index(28037); //бревно - результат рубки
-    TreeLog = .get_obj_index(3377); //бревно - результат рубки
+    TreeLog = .get_obj_index(28037); //бревно - результат рубки
+    //TreeLog = .get_obj_index(3377); //брюлик - для локального
     MaxTreeHP = 100; 
+    LoggingSkill = .Skill("logging area"); //кинет ошибку если скилл не создан в мире
+    .AffectHandler(LoggingSkill.name).onUpdateRoom = function(room, affect) {
+        .tmp.craft.logging.loggingAreaUpdate(room);
+    };
 
     //топор, и его onUse, postUse
     var Axe; //просто переменная
-    //Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
-    Axe = .get_obj_index(3026); //присваиваем переменной ссылку на прототип топора
+    Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
+    //Axe = .get_obj_index(3026); //какой-то топор на локальном
     Axe.onUse = function (axe, ch, str) {
         if(ch.start_logging!=null) ch.start_logging = null;
 
@@ -167,6 +173,7 @@
         var damage;
         damage = getOneHitDamage(ch,axe);
         if(isHitSuccess(ch)) {
+
             //наносим повреждением лесопосадкам
             ch.in_room.logging.trees_health = ch.in_room.logging.trees_health - damage;
             
@@ -216,7 +223,7 @@
     //инициализация комнаты с деревьями
     loggingForestRoomInit = function(room) {
         this = room;
-        if(logging!=null) throw('logging: room already inited');
+        if(logging!=null) throw('logging->loggingForestRoomInit(): room already inited');
 
         logging = .Map();
 
@@ -265,113 +272,68 @@
 
         return descr;
     };
-/* [Apr 21 22:31:10]:W: fenia fsck:  unreferenced function  cs: 18 (logging) line: 428 (fn:25)
-[Apr 21 22:31:10]:W: fenia fsck: 5 unref objects/functions cleared
-[Apr 21 22:31:10]:N: [wiznet:ticks] AREA & ROOM TICK!
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
 
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
-
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
-
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
-
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
-*/
     //востановление деревьев. чистка полей комнаты после полного востановления
-    loggingRoomsOnSpec = function() {
+    loggingAreaUpdate = function(room) {
         this = .tmp.craft.logging;
-        //один onSpec на все леса!!!
-        for (room in LoggingForestList) {
-            if(room.logging == null) {
-                debug(.fmt('no logging in room:%s/%s',room.name, room.areaname));
-                LoggingForestList.sub(room);
-                break;
-            } 
-            
-            //лес востановлен - чистим
-            if(room.logging.trees_health == room.logging.max_trees_health) {
-                if(.buildplot) debug(.fmt("craft_logging: room.onSpec: restored %d:%s", room.vnum, room.name));
-                loggingForestRoomClean(room);
-                break;
-            }
 
-            // востановление 400hp по 1hp в раз 4 секунды = 1600 секунд (~26 минут)
-            var restore;
-            restore = getTreeRestoreHp(room); 
-            //считаем количество уцелевших деревьев
-            var tree_quantity;
-            tree_quantity = getTreesQuantity(room); 
-
-            if(.buildplot) 
-                debug(.fmt("craft_logging: [%d:%s]start_status: max_hp->%d trees->%d hp->%d sprouts->%d",
-                room.vnum, room.name, room.logging.max_trees_health, tree_quantity, room.logging.trees_health, room.logging.sprouts_health));
-            
-            //если дерево срублено не до конца - востанавливаем его
-            if(tree_quantity > 0 && room.logging.trees_health % MaxTreeHP > 0) {
-                room.logging.trees_health = room.logging.trees_health + restore; 
-                if(room.logging.trees_health / MaxTreeHP > tree_quantity) {
-                    tree_quantity = getTreesQuantity(room);
-                    restore = room.logging.trees_health % MaxTreeHP;
-                } else {
-                    restore = 0;
-                }
-            }
-            
-            //когда дерево востановлено - ростим побеги
-            if(room.logging.trees_health < room.logging.max_trees_health) {
-                room.logging.sprouts_health = room.logging.sprouts_health + restore;
-                //если деревья вырублены не все - добавляем каждые .tmp.craft.logging.MaxTreeHP (100) к деревьям
-                if(tree_quantity>0) {
-                    if(room.logging.sprouts_health>=.tmp.craft.logging.MaxTreeHP) {
-                        restore = room.logging.sprouts_health % MaxTreeHP;
-                        room.logging.trees_health = room.logging.trees_health + ((room.logging.sprouts_health / MaxTreeHP) * MaxTreeHP);
-                        room.logging.sprouts_health = restore;
-                    } 
-                } else { //если все деревья вырублены
-                    //если ростков уже выросло как было леса изначально - востаналиваем
-                    if(room.logging.sprouts_health >= room.logging.max_trees_health) {
-                        room.logging.trees_health = room.logging.max_trees_health;
-                        room.logging.sprouts_health = 0;
-                    }
-                }
-            } 
-            if(.buildplot) 
-            debug(.fmt("craft_logging: [%d:%s]finish_status: max_hp->%d hp->%d sprouts->%d",
-                room.vnum, room.name, room.logging.max_trees_health, room.logging.trees_health, room.logging.sprouts_health));
-
+        if(room.logging == null) {
+            debug(.fmt('no logging in room:%s/%s',room.name, room.areaname));
+            room.affectStrip(LoggingSkill.name);
+            return;
+        } 
+        
+        //лес востановлен - чистим
+        if(room.logging.trees_health == room.logging.max_trees_health) {
+            if(.buildplot) debug(.fmt("loggingAreaUpdate: restored %d:%s", room.vnum, room.name));
+            room.logging=null;
+            room.affectStrip(LoggingSkill.name);
+            return;
         }
 
+        // востановление 400hp по 1hp в раз 4 секунды = 1600 секунд (~26 минут)
+        var restore;
+        restore = getTreeRestoreHp(room); 
+        //считаем количество уцелевших деревьев
+        var tree_quantity;
+        tree_quantity = getTreesQuantity(room); 
+
+        if(.buildplot) 
+            debug(.fmt("loggingAreaUpdate: [%d:%s]start_status: max_hp->%d trees->%d hp->%d sprouts->%d",
+            room.vnum, room.name, room.logging.max_trees_health, tree_quantity, room.logging.trees_health, room.logging.sprouts_health));
+        
+        //если дерево срублено не до конца - востанавливаем его
+        if(tree_quantity > 0 && room.logging.trees_health % MaxTreeHP > 0) {
+            room.logging.trees_health = room.logging.trees_health + restore; 
+            if(room.logging.trees_health / MaxTreeHP > tree_quantity) {
+                tree_quantity = getTreesQuantity(room);
+                restore = room.logging.trees_health % MaxTreeHP;
+            } else {
+                restore = 0;
+            }
+        }
+        
+        //когда дерево востановлено - ростим побеги
+        if(room.logging.trees_health < room.logging.max_trees_health) {
+            room.logging.sprouts_health = room.logging.sprouts_health + restore;
+            //если деревья вырублены не все - добавляем каждые .tmp.craft.logging.MaxTreeHP (100) к деревьям
+            if(tree_quantity>0) {
+                if(room.logging.sprouts_health>=.tmp.craft.logging.MaxTreeHP) {
+                    restore = room.logging.sprouts_health % MaxTreeHP;
+                    room.logging.trees_health = room.logging.trees_health + ((room.logging.sprouts_health / MaxTreeHP) * MaxTreeHP);
+                    room.logging.sprouts_health = restore;
+                } 
+            } else { //если все деревья вырублены
+                //если ростков уже выросло как было леса изначально - восстанавливаем
+                if(room.logging.sprouts_health >= room.logging.max_trees_health) {
+                    room.logging.trees_health = room.logging.max_trees_health;
+                    room.logging.sprouts_health = 0;
+                }
+            }
+        } 
+        if(.buildplot) 
+        debug(.fmt("loggingAreaUpdate: [%d:%s]finish_status: max_hp->%d hp->%d sprouts->%d",
+            room.vnum, room.name, room.logging.max_trees_health, room.logging.trees_health, room.logging.sprouts_health));
     };
 
     //возвращает количество уцелевших деревьев в комнате
@@ -386,21 +348,6 @@
 
     makeMainRoom = function (room) {
         room.onSpec = function() {.tmp.craft.logging.loggingRoomsOnSpec();};
-    };
-
-    //чистим комнату с деревьями
-    loggingForestRoomClean = function(room) {
-        room.logging = null;
-        .tmp.craft.logging.LoggingForestList.sub(room);
-        room.onDescr = null;
-        if(room.onSpec!=null) {
-            room.onSpec = null;
-            if(.tmp.craft.logging.LoggingForestList.size()!=0) {
-                .tmp.craft.logging.makeMainRoom(.tmp.craft.logging.LoggingForestList.back());
-            } else {
-                .tmp.craft.logging.debug("craft_logging: all room restored.");
-            }
-        }
     };
 
     //проверки, не стоит ли прервать наше увлекательное занятие
