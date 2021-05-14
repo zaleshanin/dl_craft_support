@@ -262,52 +262,9 @@
         //TODO изменить описание после вырубки в зависимости от переменных
         desct="";
 
-
         return descr;
     };
-/* [Apr 21 22:31:10]:W: fenia fsck:  unreferenced function  cs: 18 (logging) line: 428 (fn:25)
-[Apr 21 22:31:10]:W: fenia fsck: 5 unref objects/functions cleared
-[Apr 21 22:31:10]:N: [wiznet:ticks] AREA & ROOM TICK!
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
 
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
-
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
-
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
-
-[Apr 21 22:31:10]:N: >> craft_logging: room.onSpec->Runtime exception Operation not implemented
-    in cs #18 (logging) line 275: logging
-    called from cs #18 (logging) line 335
-    called from RegList::forEach
-    called from cs #18 (logging) line 349
-    called from <native>
-    Ya-ma-ta!
-*/
     //востановление деревьев. чистка полей комнаты после полного востановления
     loggingRoomsOnSpec = function() {
         this = .tmp.craft.logging;
