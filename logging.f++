@@ -6,7 +6,30 @@
     //всякие переменные для скрипта:
     TreeLog = .get_obj_index(28037); //бревно - результат рубки
     //TreeLog = .get_obj_index(3377); //брюлик - для локального
-    MaxTreeHP = 100; 
+
+    SleepInterval = 4;
+    ResultLimit = 4;
+    DefaultDamage = 5;
+    HitFailChance = 5;
+
+    MaxTreeHP = 100;
+    RoomMaxTrees = 4; 
+    DefaultTreeRestore = 1;
+
+    /*
+    getSleepInterval(ch) - вернёт количество секунд между ударами топора. По умолчанию SleepInterval
+    getOneHitDamage(ch,axe) - возвращает повреждение дереву от одного удара. По умолчанию DefaultDamage
+   
+    isHitSuccess(ch) - удачно ли нанесен удар. true если .number_mange(1,HitFailChance) > 1
+    isLoggingSuccessful(ch) - удачно ли срублено дерево. true если .number_range(1,limit)=1. по умолчанию limit = ResultLimit.
+    
+    mekeOneHit(ch,axe) - отнимает у персонажа мувы, 
+        - если удар удачный, инициализирует комнату, накладывает афект для onDescr, наносит повреждения дереву, 
+    
+    getRoomMaxTreesQuantity(room) - вернёт количество деревьев в комнате для инициализации. по умолчанию - RoomMaxTrees
+    
+    2DO - logToRoom - убрать?
+    */  
 
     //топор, и его onUse, postUse
     var Axe; //просто переменная
@@ -116,7 +139,7 @@
     //Всякие вспомонательные функции:
     getSleepInterval = function(ch) {
         var result;
-        result = 4;
+        result = SleepInterval;
 
         if(.buildplot) result=result/2;
 
@@ -214,11 +237,11 @@
     };
     //повреждение от одного удара
     getOneHitDamage = function(ch,axe){
-        var demage;
+        var damage;
         //TODOv2 учет повреждения оружия
         //TODOv2 учёт DR
         //TOTOv2 усёт силы
-        damage = 5;
+        damage = DefaultDamage;
 
         if(.buildplot) damage = 20;
 
@@ -227,23 +250,22 @@
     //попал ли удар в дерево
     isHitSuccess = function(ch) {
         //TODOv2 влияние HR, скила, механиков
-        return !.chanceOneOf(5);
+        return !.chanceOneOf(HitFailChance);
     };
     logToRoom = function(room) {
-        //ch.in_room.echo('...но оно бесследно изчезает!');
         TreeLog.create().obj_to_room(room);
     };
 
     //получаем количество деревьев в комнате
     getRoomMaxTreesQuantity = function(room) {
         //TODOv2 количество в зависимости от наличия деревьев в окружающих комнатах, плюс рандом
-        return 4;
+        return RoomMaxTrees;
     };
     //количество востанавливаемого деревом hp за раунд 
     getTreeRestoreHp = function(room) {
         //TODOv2 не востанавливать если нет деревьев в соседних клетках
         //TODOv2 влияние на востановление внешних факторов (лужа, огонь...)
-        return 1;
+        return DefaultTreeRestore;
     };
 
     //инициализация комнаты с деревьями
