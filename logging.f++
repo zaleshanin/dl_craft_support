@@ -213,7 +213,10 @@
 
             if(room.logging==null) loggingForestRoomInit(room); 
 
-            if(!room.isAffected(LoggingSkill.name)) ch.spell(LoggingSkill.name, ch.level);
+            if(!room.isAffected(LoggingSkill.name)) {
+                //LoggingSkill.apply(ch, ch.in_room, ch.level);
+                ch.spell(LoggingSkill.name, ch.level);
+            }
             
             //наносим повреждением лесопосадкам
             room.logging.trees_health = room.logging.trees_health - damage;
@@ -233,7 +236,9 @@
             if(room.logging.trees_health<=0 && !room.isAffected(DeforestationSkill.name)) {
                 //if(room.isAffected(LoggingSkill.name)) {room.affectStrip(LoggingSkill.name);}
                 clearLoggingArea(room);
-                ch.spell(DeforestationSkill.name, ch.level);//room.affectAdd(DeforestationSkill.name);
+                //DeforestationSkill.apply(ch, ch.in_room, ch.level);
+                ch.spell(DeforestationSkill.name, ch.level);
+                //room.affectAdd(DeforestationSkill.name);
             }
 
             if(.buildplot) debug(.fmt("craft_logging: makeOneHit: damage:%d rest_trees_health:%d ", damage, room.logging.trees_health));
@@ -241,10 +246,10 @@
         } else {
             //TODOv2 разнообразить сообщение о промахе
             if(.chance(50)) {
-                ch.in_room.echo("%^C1 не попадает %O5 по дереву.", ch, axe);
+                ch.recho("%^C1 не попадает %O5 по дереву.", ch, axe);
                 ch.act("Ты не попадаешь %O5 по дереву!", axe);
             } else {
-                ch.in_room.echo("%^C1 бьёт обухом %O2 по дереву.", ch, axe);
+                ch.recho("%^C1 бьёт обухом %O2 по дереву.", ch, axe);
                 ch.act("Удар %O2 приходится по дереву обухом!", axe);
                 //звук на всю зону
                 ch.in_room.zecho("'{сБУМ{x'");
@@ -298,7 +303,7 @@
     //чистка полей комнаты после полного восстановления
     clearLoggingArea = function(room) {
         this = .tmp.craft.logging;
-        if(.buildplot) debug(.fmt("CraftLogging: onSpec erasing [%d]%s",room.vnum, room.name));
+        if(.buildplot) debug(.fmt("clearLoggingArea(): clearing [%d]:%s",room.vnum, room.name));
         if(room.isAffected(LoggingSkill.name)) room.affectStrip(LoggingSkill.name);
         if(room.isAffected(DeforestationSkill.name)) room.affectStrip(DeforestationSkill.name);
         if(room.logging.trees_health == room.logging.max_trees_health) room.logging=null;
@@ -373,12 +378,10 @@
         af = .Affect();
         af.type      = skill.name;
         af.level     = level;
-        af.location = .tables.apply_flags.heal_gain;
-        af.modifier = 0;
         af.duration  = -1;
         room.affectJoin(af);
         
-        .tmp.craft.logging.debug("craft_logging: affect 'logging area' added.");
+        .tmp.craft.logging.debug("craft_logging: eval affect 'logging area' added.");
     };
     //affect/logging area/onDescr
     .AffectHandler("logging area").onDescr = function(ch, af) {
@@ -409,7 +412,6 @@
         else {
             sprouts_percents = ((room.logging.sprouts_health / stumps_quantity) * 100 ) / MaxTreeHP;
         }
-
 
         if(.buildplot) {
             debug("Количество пней - "+stumps_quantity+". "
@@ -553,7 +555,6 @@
 
         return true;
 };
-    
         
     DeforestationSkill = .Skill("deforestation"); //кинет ошибку если скилл не создан в мире
     .Spell(DeforestationSkill.name).runRoom = function() {
@@ -569,7 +570,7 @@
         af.level     = level;
         af.duration  = 24*60;
         af.location  = .tables.apply_flags.sector_type;
-        af.modifier  = .tables.sector_table.field;
+        af.modifier  = .tables.sector_table.city; //field
         room.affectJoin(af);
         
         ch.in_room.echo("В этом месте не осталось деревьев. Нечего рубить. Негде укрыться.");
