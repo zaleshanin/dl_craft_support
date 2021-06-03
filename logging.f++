@@ -17,6 +17,8 @@
     DefaultTreeRestore = 1;
 
     /*
+    ********Инициализация*******
+    .tmp.craft.logging.Init(this) - должно проинитить все двуручные топоры для рубки. В параметры передаёте себя (this), для вывода сообщений.
     ------------РУБКА----------
     getSleepInterval(ch) - вернёт количество секунд между ударами топора. По умолчанию SleepInterval
     getOneHitDamage(ch,axe) - возвращает повреждение дереву от одного удара. По умолчанию DefaultDamage
@@ -44,12 +46,60 @@
     .AffectHandler("logging area").onDescr - генерация описания недорубленного леса
     .AffectHandler("logging area").onUpdateRoom - восстановление недорубленных деревьев (12 сек.)
     */  
-
     //топор, и его onUse, postUse
-    var Axe; //просто переменная
-    Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
+    //var Axe; //просто переменная
+    //Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
+    //инициализация двуручных топоров
+    Init = function(ch) {
+        var obj, axe_list, pObj;
+        axe_list=.List();
+        for( obj = .object_list; obj != null; obj = obj.next ) {
+            if(obj.item_type == .tables.item_table.weapon 
+                && obj.value0 == .tables.weapon_class.axe
+                && obj.value4&.tables.weapon_type2.two_hands
+                && !axe_list.has(obj.pIndexData.vnum) 
+                ) { 
+
+                pObj = obj.pIndexData;
+
+                axe_list.push_back(pObj.vnum);
+
+                if(pObj.onUse!=null || pObj.postUse!=null || pObj.onRemove!=null) {
+                    if(pObj.lumber==null) {
+                        ch.act("[%1$d] %2$^O1 не может быть инициализирован. для информации 'eval ptc(.get_obj_index(%1$d).rtapi())'" ,pObj.vnum, obj);
+                        continue;
+                    }
+                }
+                axeInit(pObj);
+
+                ch.act("[%1$d] %2$^O1 - пригоден для рубки!", pObj.vnum, obj);
+            }
+        }
+
+    };
+    axeInit = function(axe) {
+        axe.lumber = true;
+        axe.onUse = function(axe, ch, str) {
+            var result;
+            //пытаемся воспользоваться топором для рубки деревьев
+            result = .tmp.craft.logging.axeOnUse(axe, ch, str);
+            
+            return result;
+        };
+        axe.postUse = function(axe, ch, str) {
+            //начинаем рубить дерево
+            if(ch.start_logging==null)  {
+                .tmp.craft.logging.axePostUse(axe, ch, str);
+            }
+        };
+        axe.onRemove = function (axe, ch) {
+            //пытаемся остановить рубку
+            .tmp.craft.logging.axeOnRemove(axe, ch);
+        };
+    };
+
     //Axe = .get_obj_index(3026); //какой-то топор на локальном
-    Axe.onUse = function (axe, ch, str) {
+    axeOnUse = function (axe, ch, str) {
         if(ch.start_logging!=null) ch.start_logging = null;
 
         //уже рубим - прекращаем
@@ -93,7 +143,7 @@
 
         return true;
     };
-    Axe.postUse = function(axe, ch, str) {
+    axePostUse = function(axe, ch, str) {
         try{
             if(.tmp.craft.logging==null) {
                 ch.act('Ты собирал%Gось|ся|ась срубить дерево, но что-то пошло не так.',ch);
@@ -148,7 +198,7 @@
         ch.logging=null;
     };
     //чар снимает топор - прекращаем рубить дерево
-    Axe.onRemove = function (axe, ch) {
+    axeOnRemove = function (axe, ch) {
         if(ch.logging!=null) {ch.logging=null;}
     };
 
