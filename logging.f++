@@ -1,610 +1,520 @@
+//logging ver.1.03 (инструкция внутри)
 .apply(function () {
-    if(.tmp.craft==null) .tmp.craft = .Map();
-    if(.tmp.craft.logging==null) .tmp.craft.logging = .Map();
-    this = .tmp.craft.logging;
+	var initiator; 
+	initiator = this;
+	if(.tmp.craft==null) .tmp.craft = .Map();
+	if(.tmp.craft.logging==null) .tmp.craft.logging = .Map();
+	this = .tmp.craft.logging;
 
-    //всякие переменные для скрипта:
-    TreeLog = .get_obj_index(28037); //бревно - результат рубки
-    //TreeLog = .get_obj_index(3377); //брюлик - для локального
+	//всякие переменные для скрипта:
+	TreeLog = .get_obj_index(28037); //бревно - результат рубки
+	//TreeLog = .get_obj_index(3377); //брюлик - для локального
 
-    SleepInterval = 4;
-    ResultLimit = 4;
-    DefaultDamage = 5;
-    HitFailChance = 5;
+	SleepInterval = 4;
+	ResultLimit = 4;
+	DefaultDamage = 5;
+	HitFailChance = 5;
 
-    MaxTreeHP = 100;
-    RoomMaxTrees = 4; 
-    DefaultTreeRestore = 1;
+	MaxTreeHP = 100;
+	RoomMaxTrees = 4; 
+	DefaultTreeRestore = 1;
 
-    /*
-    ------------РУБКА----------
-    getSleepInterval(ch) - вернёт количество секунд между ударами топора. По умолчанию SleepInterval
-    getOneHitDamage(ch,axe) - возвращает повреждение дереву от одного удара. По умолчанию DefaultDamage
-   
-    isHitSuccess(ch) - удачно ли нанесен удар. true если .number_mange(1,HitFailChance) > 1
-    isLoggingSuccessful(ch) - удачно ли срублено дерево. true если .number_range(1,limit)=1. по умолчанию limit = ResultLimit.
-    
-    mekeOneHit(ch,axe) - отнимает у персонажа мувы, 
-        - если удар удачный, инициализирует комнату, накладывает афект для onDescr, наносит повреждения дереву, 
-    sleepRoom(second, ch, axe) - пауза, проверка состояния окружения в потоке
-    
-    ___Расчёт___
-    Одно дерево: 100/5 * 4 = 80 секунд
-    Все деревья: 80 * 4 = 320 секунд = 5,3 минуты
-    --------------------------
-    
-    loggingForestRoomInit(room) - инициализация комнаты. Содержание поля logging комнаты:
-        max_trees_health - максимальное hp всех деревьев (MaxTreeHP*RoomMaxTrees)
-        trees_health - текущее hp деревьев
-        sprouts_health - hp побегов
-    getRoomMaxTreesQuantity(room) - вернёт количество деревьев в комнате для инициализации. по умолчанию - RoomMaxTrees
-    getTreeRestoreHp(room) - вернёт количество восстанавливаемого леса за один onUpdateRoom. По умолчанию DefaultTreeRestore
-    getTreesQuantity(room) - возвращает количество уцелевших деревьев для onDescr
-    
-    .AffectHandler("logging area").onDescr - генерация описания недорубленного леса
-    .AffectHandler("logging area").onUpdateRoom - восстановление недорубленных деревьев (12 сек.)
-    */  
+	/*
+	------------РУБКА----------
+	getSleepInterval(ch) - вернёт количество секунд между ударами топора. По умолчанию SleepInterval
+	getOneHitDamage(ch,axe) - возвращает повреждение дереву от одного удара. По умолчанию DefaultDamage
 
-    //топор, и его onUse, postUse
-    var Axe; //просто переменная
-    Axe = .get_obj_index(6000); //присваиваем переменной ссылку на прототип топора
-    //Axe = .get_obj_index(3026); //какой-то топор на локальном
-    Axe.onUse = function (axe, ch, str) {
-        if(ch.start_logging!=null) ch.start_logging = null;
+	isHitSuccess(ch) - удачно ли нанесен удар. true если .number_mange(1,HitFailChance) > 1
+	isLoggingSuccessful(ch) - удачно ли срублено дерево. true если .number_range(1,limit)=1. по умолчанию limit = ResultLimit.
 
-        //уже рубим - прекращаем
-        if(ch.logging!=null) {ch.logging=null;return true;}
+	mekeOneHit(ch,axe) - отнимает у персонажа мувы, 
+		- если удар удачный, инициализирует комнату, накладывает афект для onDescr, наносит повреждения дереву, 
+	sleepRoom(second, ch, axe) - пауза, проверка состояния окружения в потоке
 
-        //не в инвентаре
-        if(axe.getCarrier()!=ch) {
-            ch.act('%1$^O4 следует поднять и взять в руки.', axe);
-            ch.recho("%1$^C1 дотрагивается до %2$O2.", ch, axe);
-            return true;
-        }
+	___Расчёт___
+	Одно дерево: 100/5 * 4 = 80 секунд
+	Все деревья: 80 * 4 = 320 секунд = 5,3 минуты
+	--------------------------
 
-        //не вооружен
-        if(axe.wear_loc!='wield') {
-            ch.act('%1$^O5 следует вооружиться.', axe);
-            return true;
-        }
+	loggingForestRoomInit(room) - инициализация комнаты. Содержание поля logging комнаты:
+		max_trees_health - максимальное hp всех деревьев (MaxTreeHP*RoomMaxTrees)
+		trees_health - текущее hp деревьев
+		sprouts_health - hp побегов
+	getRoomMaxTreesQuantity(room) - вернёт количество деревьев в комнате для инициализации. по умолчанию - RoomMaxTrees
+	getTreeRestoreHp(room) - вернёт количество восстанавливаемого леса за один onUpdateRoom. По умолчанию DefaultTreeRestore
+	getTreesQuantity(room) - возвращает количество уцелевших деревьев для onDescr
 
-        //не лес
-        if(ch.in_room.sector_type!=.tables.sector_table.forest) {
+	.AffectHandler("logging area").onDescr - генерация описания недорубленного леса
+	.AffectHandler("logging area").onUpdateRoom - восстановление недорубленных деревьев (12 сек.)
+	*/  
+
+	//Axe = .get_obj_index(3026); //какой-то топор на локальном
+	axeOnUse = function (axe, ch, str) {
+		if(ch.start_logging!=null) ch.start_logging = null;
+
+		//уже рубим - прекращаем
+		if(ch.logging!=null) {ch.logging=null;return true;}
+
+		//не в инвентаре
+		if(axe.getCarrier()!=ch) {
+			ch.act('%1$^O4 следует поднять и взять в руки.', axe);
+			ch.recho("%1$^C1 дотрагивается до %2$O2.", ch, axe);
+			return true;
+		}
+
+		//не вооружен
+		if(axe.wear_loc!='wield') {
+			ch.act('%1$^O5 следует вооружиться.', axe);
+			return true;
+		}
+
+		//не лес
+		if(ch.in_room.sector_type!=.tables.sector_table.forest) {
 			//ch.act('Рубить лес обычно принято в лесу.'); //а вдруг мы и не думали рубить лес
-            ch.act('Здесь нечего рубить. Ты с сожалением вздыхаешь.');
-            ch.recho("%1$^C1 с сожалением вздыхает, держа в руках %2$O4.", ch, axe);
-            return true;
-        }
-        
-        //дерёшься
-        if (ch.position&.tables.position_table.fight) {
-            ch.act('Сейчас ты и так делаешь %1$^O5 всё необходимое!', axe);
-            return true;
-        }
+			ch.act('Здесь нечего рубить. Ты с сожалением вздыхаешь.');
+			ch.recho("%1$^C1 с сожалением вздыхает, держа в руках %2$O4.", ch, axe);
+			return true;
+		}
+		
+		//дерёшься
+		if (ch.position&.tables.position_table.fight) {
+			ch.act('Сейчас ты и так делаешь %1$O5 всё необходимое!', axe);
+			return true;
+		}
 
-         //не стоишь
-        if (!(ch.position&.tables.position_table.stand)) {
-            ch.act('Рубить деревья можно только твёрдо стоя на ногах.');
-            return true;
-        }
-        //TODO sneak hide fade camuflate?
-        if(!.buildplot) ch.visible();
-        ch.start_logging = true;
+			//не стоишь
+		if (!(ch.position&.tables.position_table.stand)) {
+			ch.act('Рубить деревья можно только твёрдо стоя на ногах.');
+			return true;
+		}
+		//TODO sneak hide fade camuflate?
+		if(!.buildplot) ch.visible();
+		ch.start_logging = ch.in_room;
 
-        return true;
-    };
-    Axe.postUse = function(axe, ch, str) {
-        try{
-            if(.tmp.craft.logging==null) {
-                ch.act('Ты собирал%Gось|ся|ась срубить дерево, но что-то пошло не так.',ch);
-                throw "logging: no .tmp.craft.logging";
-            }
-            this = .tmp.craft.logging;
+		return true;
+	};
+	axePostUse = function(axe, ch, str) {
+		var room;
+		try{
+			if(.tmp.craft.logging==null) {
+				ch.act('Ты собирал%Gось|ся|ась срубить дерево, но что-то пошло не так.',ch);
+				throw "logging: no .tmp.craft.logging";
+			}
+			this = .tmp.craft.logging;
 
-            if(ch.start_logging==null) return;
-            else ch.start_logging=null;
+			if(ch.start_logging==null) return;
+			else {
+				room = ch.start_logging;
+				ch.start_logging = null;
+			}
 
-            //проверяем/генерим деревца.
-            if(ch.in_room.logging==null) {
-                loggingForestRoomInit(ch.in_room);
-            }
+			//проверяем/генерим деревца.
+			if(ch.in_room.logging==null) {
+				loggingForestRoomInit(ch.in_room);
+			}
 
-            //TODOv2 и вдруг... ЭНТ!
-            //начинаем рубить
-            if(.buildplot) debug(.fmt("CraftLogging: %^C1 начинает производственную гимнастику [%d]:%s",ch,ch.in_room.vnum,ch.in_room.name));
-            ch.logging=true;
-            /*var chopsCount; chopsCount = getChopsCount(ch);*/
-            var sleepInterval; sleepInterval = getSleepInterval(ch);
-            var current_tree_quantity;
-            current_tree_quantity = (ch.in_room.logging.trees_health / MaxTreeHP);
-            if(ch.in_room.logging.trees_health % MaxTreeHP > 0) 
-                current_tree_quantity = current_tree_quantity + 1;
-            
-            if(.buildplot) 
-                debug(.fmt("craft_logging: [%d:%s]status_before: max_hp->%d trees->%d hp->%d sprouts->%d",
-                ch.in_room.vnum, ch.in_room.name, ch.in_room.logging.max_trees_health, current_tree_quantity, ch.in_room.logging.trees_health, ch.in_room.logging.sprouts_health));
-            
-            for( ; ch.in_room.logging.trees_health > (current_tree_quantity-1)*MaxTreeHP ; ) {
-                sleepRoom(sleepInterval,ch,axe);
+			//TODOv2 и вдруг... ЭНТ!
+			//начинаем рубить
+			if(.buildplot) debug(.fmt("CraftLogging: %^C1 начинает производственную гимнастику [%d]:%s",ch,ch.in_room.vnum,ch.in_room.name));
+			ch.logging=true;
+			/*var chopsCount; chopsCount = getChopsCount(ch);*/
+			var sleepInterval; sleepInterval = getSleepInterval(ch);
 
-                makeOneHit(ch,axe);
-                
-                //TODOv2 выгоднять из камуфляжа всех кто в комнате ))
-            }
-            if(.buildplot) 
-                debug(.fmt("craft_logging: [%d:%s]status_after: max_hp->%d hp->%d sprouts->%d",
-                ch.in_room.vnum, ch.in_room.name, ch.in_room.logging.max_trees_health, ch.in_room.logging.trees_health, ch.in_room.logging.sprouts_health));
-            if(.buildplot) debug(.fmt("CraftLogging: %^C1 закончил упраждения [%d]:%s",ch,ch.in_room.vnum,ch.in_room.name));
+			var current_tree_quantity;
+			current_tree_quantity = (ch.in_room.logging.trees_health / MaxTreeHP);
+			if(ch.in_room.logging.trees_health % MaxTreeHP > 0) 
+				current_tree_quantity = current_tree_quantity + 1;
+			
+			if(.buildplot) 
+				debug(.fmt("craft_logging: [%d:%s]status_before: max_hp->%d trees->%d hp->%d sprouts->%d",
+				ch.in_room.vnum, ch.in_room.name, ch.in_room.logging.max_trees_health, current_tree_quantity, ch.in_room.logging.trees_health, ch.in_room.logging.sprouts_health));
+			
+			//первый удар, чтоб не ждать долго...
+			if(checkState(ch, room, axe)) makeOneHit(ch, axe);
+			for( ; ch.in_room.logging.trees_health > (current_tree_quantity-1)*MaxTreeHP ; ) {
+				sleepRoom(sleepInterval,ch,axe);
 
-            if(isLoggingSuccessful(ch)) {
-                ch.in_room.echo('Дерево с грохотом падает, превращаясь в качественное бревно!');
-                TreeLog.create().obj_to_room(ch.in_room);
-            } else {
-                ch.in_room.echo('Изрубленное в капусту дерево, падая превращается в кучу бесполезных щепок!');
-            }
-        }catch(e){
-            catchMsg(e);
-        }
-        ch.logging=null;
-    };
-    //чар снимает топор - прекращаем рубить дерево
-    Axe.onRemove = function (axe, ch) {
-        if(ch.logging!=null) {ch.logging=null;}
-    };
+				makeOneHit(ch,axe);
+				
+				//TODOv2 выгоднять из камуфляжа всех кто в комнате ))
+			}
+			if(.buildplot) 
+				debug(.fmt("craft_logging: [%d:%s]status_after: max_hp->%d hp->%d sprouts->%d",
+				ch.in_room.vnum, ch.in_room.name, ch.in_room.logging.max_trees_health, ch.in_room.logging.trees_health, ch.in_room.logging.sprouts_health));
+			if(.buildplot) debug(.fmt("CraftLogging: %^C1 закончил упраждения [%d]:%s",ch,ch.in_room.vnum,ch.in_room.name));
 
-    //Всякие вспомонательные функции:
-    getSleepInterval = function(ch) {
-        var result;
-        result = SleepInterval;
+			if(isLoggingSuccessful(ch)) {
+				ch.in_room.echo('Дерево с грохотом падает, превращаясь в качественное бревно!');
+				TreeLog.create().obj_to_room(ch.in_room);
+			} else {
+				ch.in_room.echo('Изрубленное в капусту дерево, падая превращается в кучу бесполезных щепок!');
+			}
+		}catch(e){
+			catchMsg(e);
+		}
+		ch.logging=null;
+	};
+	//чар снимает топор - прекращаем рубить дерево
+	axeOnRemove = function (axe, ch) {
+		if(ch.logging!=null) {ch.logging=null;}
+	};
 
-        if(.buildplot) result=result/2;
+	//Всякие вспомонательные функции:
+	getSleepInterval = function(ch) {
+		var result;
+		result = SleepInterval;
 
-        //TODOv2 наличие хасты (result=result/2);
+		if(.buildplot) result=result/2;
 
-        //TODOv2 наличие механика (result=result/2);
+		//TODOv2 наличие хасты (result=result/2);
 
-        return result;
-    };
+		//TODOv2 наличие механика (result=result/2);
 
-    isLoggingSuccessful = function(ch) {
-        var limit;
-        limit = 4;
-        //TODOv2 skill (limit=limit-2)
-        //TODOv2 mechanic  (limit=1)
-        if(.buildplot) limit=2;
-        if(.number_range(1,limit)!=1) return false;
-        return true;
-    };
-    //делаем один удар(попытку)
-    makeOneHit = function(ch,axe) {
-        this = .tmp.craft.logging;
+		return result;
+	};
 
-        var room;
-        room = ch.in_room;
+	isLoggingSuccessful = function(ch) {
+		var limit;
+		limit = 4;
+		//TODOv2 skill (limit=limit-2)
+		//TODOv2 mechanic  (limit=1)
+		//if(.buildplot) limit=2;
+		//if(.number_range(1,limit)!=1) return false;
+		return true;
+	};
+	//делаем один удар(попытку)
+	makeOneHit = function(ch,axe) {
+		this = .tmp.craft.logging;
 
-        //считаем потраченные мувы
-        var move_cost;
-        move_cost = .number_range((ch.perm_move / 50) + 1, (ch.perm_move / 20) + 1); //расход мувов на один удар
-        if(.buildplot) debug(.fmt("craft_logging: makeOneHit: cost:%d rest_moves:%d ", move_cost, ch.move - move_cost));
-        //удар расходует мувы
-        if(move_cost <= ch.move) {
-            ch.move =  ch.move - move_cost;
-        } else {
-            ch.act("Ты слишком устал{Sfа{Sx рубить, нужно передохнуть.");
-            ch.recho("%1$^C1 прекращает рубить дерево.", ch);
-            throw "craft_logging: ch not enough moves";
-        }
+		var room;
+		room = ch.in_room;
 
-        //считаем нанесенные повреждения
-        var damage;
-        if(isHitSuccess(ch)) {
-            ch.act('Ты наносишь удар %O5 по дереву!', axe);
-            ch.recho("%1$^C1 наносит удар %2$O5 по дереву!", ch, axe);
-            //звук на всю зону
-            ch.in_room.zecho("'{CТЮК{x'");
-            //TODO "Ты слышишь звонкие удары топора дровосека где-то поблизости."
+		//считаем потраченные мувы
+		var move_cost;
+		move_cost = .number_range((ch.perm_move / 50) + 1, (ch.perm_move / 20) + 1); //расход мувов на один удар
+		if(.buildplot) debug(.fmt("craft_logging: makeOneHit: cost:%d rest_moves:%d ", move_cost, ch.move - move_cost));
+		//удар расходует мувы
+		if(move_cost <= ch.move) {
+			ch.move =  ch.move - move_cost;
+		} else {
+			ch.act("Ты слишком устал{Sfа{Sx рубить, нужно передохнуть.");
+			ch.recho("%1$^C1 прекращает рубить дерево.", ch);
+			throw "craft_logging: ch not enough moves";
+		}
 
-            var restTreeHp; 
-            restTreeHp = room.logging.trees_health % MaxTreeHP;
-            if(restTreeHp==0) restTreeHp = 100;
+		//считаем нанесенные повреждения
+		var restTreeHp; 
+		restTreeHp = room.logging.trees_health % MaxTreeHP;
+		if(restTreeHp==0) restTreeHp = MaxTreeHP;
 
-            //повреждение не превышает остаток hp дерева
-            damage = .min(getOneHitDamage(ch,axe), restTreeHp);
+		var damage;
+		if(isHitSuccess(ch)) {
+			ch.act('Ты наносишь удар %O5 по дереву!', axe);
+			ch.recho("%1$^C1 наносит удар %2$O5 по дереву!", ch, axe);
+			//звук на всю зону
+			//ch.in_room.zecho("'{CТЮК{x'");
+			//TODO "Ты слышишь звонкие удары топора дровосека где-то поблизости."
 
-            if(room.logging==null) loggingForestRoomInit(room); 
+			//повреждение не превышает остаток hp дерева
+			damage = .min(getOneHitDamage(ch,axe), restTreeHp);
+			restTreeHp = restTreeHp - damage;
 
-            if(!room.isAffected(LoggingSkill.name)) ch.spell(LoggingSkill.name, ch.level);
-            
-            //наносим повреждением лесопосадкам
-            room.logging.trees_health = room.logging.trees_health - damage;
-            
-            //TODOv2 на разную силу повреждения разные сообщения
-            if(damage>0) {
-                if(.chance(50)) {
-                    ch.in_room.echo("От дерева отлетает щепка.");
-                } else if (.chance(50)) {
-                    ch.in_room.echo("На дереве остаётся надрубленная щепа.");
-                } else {
-                    ch.in_room.echo("На дереве остаётся зарубина.");
-                }
-            } else {
-                ch.in_room.echo("Удар не наносит дереву никаких повреждений!");
-            }
-            if(room.logging.trees_health<=0 && !room.isAffected(DeforestationSkill.name)) {
-                //if(room.isAffected(LoggingSkill.name)) {room.affectStrip(LoggingSkill.name);}
-                clearLoggingArea(room);
-                ch.spell(DeforestationSkill.name, ch.level);//room.affectAdd(DeforestationSkill.name);
-            }
+			if(room.logging==null) loggingForestRoomInit(room); 
 
-            if(.buildplot) debug(.fmt("craft_logging: makeOneHit: damage:%d rest_trees_health:%d ", damage, room.logging.trees_health));
- 
-        } else {
-            //TODOv2 разнообразить сообщение о промахе
-            if(.chance(50)) {
-                ch.in_room.echo("%^C1 не попадает %O5 по дереву.", ch, axe);
-                ch.act("Ты не попадаешь %O5 по дереву!", axe);
-            } else {
-                ch.in_room.echo("%^C1 бьёт обухом %O2 по дереву.", ch, axe);
-                ch.act("Удар %O2 приходится по дереву обухом!", axe);
-                //звук на всю зону
-                ch.in_room.zecho("'{сБУМ{x'");
-            } 
-         }
+			if(!room.isAffected(LoggingSkill.name)) {
+				//LoggingSkill.apply(ch, ch.in_room, ch.level);
+				
+				//ch.spell(LoggingSkill.name, ch.level);
+				var af;
+		
+				if (room.sector_type != .tables.sector_table.forest) {
+					throw("logging: logging area -> room ["+room.vnum+"] not a forest.");
+					return;
+				}
+			
+				af = .Affect();
+				af.type      = LoggingSkill.name;
+				af.level     = ch.modifyLevel;
+				af.duration  = -1;
+				room.affectJoin(af);
+				
+				.tmp.craft.logging.debug("craft_logging: eval affect 'logging area' added.");            
+			}
+			
+			//наносим повреждением лесопосадкам
+			room.logging.trees_health = room.logging.trees_health - damage;
+			
+			//TODOv2 на разную силу повреждения разные сообщения
+			if(damage>0) {
+				if(.chance(50)) {
+					ch.in_room.echo("От дерева отлетает щепка.");
+				} else if (.chance(50)) {
+					ch.in_room.echo("На дереве остаётся надрубленная щепа.");
+				} else {
+					ch.in_room.echo("На дереве остаётся зарубина.");
+				}
+			} else {
+				ch.in_room.echo("Удар не наносит дереву никаких повреждений!");
+			}
 
-    };
-    //повреждение от одного удара
-    getOneHitDamage = function(ch,axe){
-        var damage;
-        //TODOv2 учет повреждения оружия
-        //TODOv2 учёт DR
-        //TOTOv2 усёт силы
-        damage = DefaultDamage;
+			if(.buildplot) debug(.fmt("craft_logging: makeOneHit: damage:%d rest_trees_health:%d ", damage, room.logging.trees_health));
 
-        if(.buildplot) damage = 20;
+		} else {
+			//TODOv2 разнообразить сообщение о промахе
+			if(.chance(50)) {
+				ch.recho("%^C1 не попадает %O5 по дереву.", ch, axe);
+				ch.act("Ты не попадаешь %O5 по дереву!", axe);
+			} else {
+				ch.recho("%^C1 бьёт обухом %O2 по дереву.", ch, axe);
+				ch.act("Удар %O2 приходится по дереву обухом!", axe);
+				//звук на всю зону
+				//ch.in_room.zecho("'{сБУМ{x'");
+			} 
+		}
+		
+		if(room.logging.trees_health<=0 && !room.isAffected(DeforestationSkill.name)) {
+			//if(room.isAffected(LoggingSkill.name)) {room.affectStrip(LoggingSkill.name);}
+			clearLoggingArea(room);
+			//DeforestationSkill.apply(ch, ch.in_room, ch.level);
+			//room.affectAdd(DeforestationSkill.name);
 
-        return damage;
-    };
-    //попал ли удар в дерево
-    isHitSuccess = function(ch) {
-        //TODOv2 влияние HR, скила, механиков
-        return !.chanceOneOf(HitFailChance);
-    };
+			//ch.spell(DeforestationSkill.name, ch.level);
+			var af;
 
-    //получаем количество деревьев в комнате
-    getRoomMaxTreesQuantity = function(room) {
-        //TODOv2 количество в зависимости от наличия деревьев в окружающих комнатах, плюс рандом
-        return RoomMaxTrees;
-    };
-    //количество востанавливаемого деревом hp за раунд 
-    getTreeRestoreHp = function(room) {
-        //TODOv2 не востанавливать если нет деревьев в соседних клетках
-        //TODOv2 влияние на востановление внешних факторов (лужа, огонь...)
-        return DefaultTreeRestore;
-    };
+			if (room.sector_type != .tables.sector_table.forest) {
+				throw("logging: deforestation -> room ["+room.vnum+"] not a forest.");
+				return;
+			}
+		
+			af = .Affect();
+			af.type      = DeforestationSkill.name;
+			af.level     = ch.modifyLevel;
+			af.duration  = 24*60;
+			af.location  = .tables.apply_flags.sector_type;
+			af.modifier  = .tables.sector_table.city; //field
+			room.affectJoin(af);
+			
+			ch.in_room.echo("В этом месте не осталось деревьев. Нечего рубить. Негде укрыться.");
+			.tmp.craft.logging.debug("craft_logging: affect 'deforestation' added.");
+		
+		} else  {
+			if(restTreeHp>0) {
+				if(.buildplot) debug("restTreeHp: "+restTreeHp);
+				ch.act("Дерево %s", getTreeHealthStr(((restTreeHp)*100)/MaxTreeHP));
+			}
+		}
+	};
+	//повреждение от одного удара
+	getOneHitDamage = function(ch,axe){
+		var damage;
+		//TODOv2 учет повреждения оружия
+		//TODOv2 учёт DR
+		//TOTOv2 усёт силы
+		damage = DefaultDamage;
 
-    //инициализация комнаты с деревьями
-    loggingForestRoomInit = function(room) {
-        this = room;
-        if(logging!=null) throw('logging->loggingForestRoomInit(): room already inited');
+		if(.buildplot) damage = 20;
 
-        logging = .Map();
+		return damage;
+	};
+	//попал ли удар в дерево
+	isHitSuccess = function(ch) {
+		//TODOv2 влияние HR, скила, механиков
+		return !.chanceOneOf(HitFailChance);
+	};
 
-        //TODOv2 рандом?
-        logging.max_trees_health = .tmp.craft.logging.getRoomMaxTreesQuantity(room) * .tmp.craft.logging.MaxTreeHP; //количество деревьев * на hp дерева 
-        logging.trees_health = logging.max_trees_health;
-        logging.sprouts_health = 0; //hp побега - при достижении 100 прибавляется к hp деревьев (если есть)
+	//получаем количество деревьев в комнате
+	getRoomMaxTreesQuantity = function(room) {
+		//TODOv2 количество в зависимости от наличия деревьев в окружающих комнатах, плюс рандом
+		return RoomMaxTrees;
+	};
+	//количество востанавливаемого деревом hp за раунд 
+	getTreeRestoreHp = function(room) {
+		//TODOv2 не востанавливать если нет деревьев в соседних клетках
+		//TODOv2 влияние на востановление внешних факторов (лужа, огонь...)
+		return DefaultTreeRestore;
+	};
 
-    };
-    //чистка полей комнаты после полного восстановления
-    clearLoggingArea = function(room) {
-        this = .tmp.craft.logging;
-        if(.buildplot) debug(.fmt("CraftLogging: onSpec erasing [%d]%s",room.vnum, room.name));
-        if(room.isAffected(LoggingSkill.name)) room.affectStrip(LoggingSkill.name);
-        if(room.isAffected(DeforestationSkill.name)) room.affectStrip(DeforestationSkill.name);
-        if(room.logging.trees_health == room.logging.max_trees_health) room.logging=null;
-    };
+	//инициализация комнаты с деревьями
+	loggingForestRoomInit = function(room) {
+		this = room;
+		if(logging!=null) throw('logging->loggingForestRoomInit(): room already inited');
 
-    //возвращает количество уцелевших деревьев в комнате
-    getTreesQuantity = function(room) {
-        var tree_quantity;
-        tree_quantity = room.logging.trees_health / .tmp.craft.logging.MaxTreeHP; 
-        if(room.logging.trees_health % .tmp.craft.logging.MaxTreeHP > 0) 
-            tree_quantity = tree_quantity + 1;
-        
-        return tree_quantity;
-    };
+		logging = .Map();
 
-    //проверки, не стоит ли прервать наше увлекательное занятие
-    sleepRoom = function(seconds, ch, axe) {
-        var room;
-        room = ch.in_room;
+		//TODOv2 рандом?
+		logging.max_trees_health = .tmp.craft.logging.getRoomMaxTreesQuantity(room) * .tmp.craft.logging.MaxTreeHP; //количество деревьев * на hp дерева 
+		logging.trees_health = logging.max_trees_health;
+		logging.sprouts_health = 0; //hp побега - при достижении 100 прибавляется к hp деревьев (если есть)
 
-        var i;
-        for(i = 0; i < seconds*4; i = i + 1) {
-            .scheduler.sleep(1);
+	};
+	//чистка полей комнаты после полного восстановления
+	clearLoggingArea = function(room) {
+		this = .tmp.craft.logging;
+		if(.buildplot) debug(.fmt("clearLoggingArea(): clearing [%d]:%s",room.vnum, room.name));
+		if(room.isAffected(LoggingSkill.name)) room.affectStrip(LoggingSkill.name);
+		if(room.isAffected(DeforestationSkill.name)) room.affectStrip(DeforestationSkill.name);
+		if(room.logging.trees_health == room.logging.max_trees_health) room.logging=null;
+	};
 
-            //комната востановилась
-            if(room.logging==null) {
-                throw "logging: room is restored in process";
-            }
+	//возвращает количество уцелевших деревьев в комнате
+	getTreesQuantity = function(room) {
+		var tree_quantity;
+		tree_quantity = room.logging.trees_health / .tmp.craft.logging.MaxTreeHP; 
+		if(room.logging.trees_health % .tmp.craft.logging.MaxTreeHP > 0) 
+			tree_quantity = tree_quantity + 1;
+		
+		return tree_quantity;
+	};
 
-            //помер
-            if (ch.dead)
-                throw "logging: ch is dead";
-            //покинул комнату
-            if (room != ch.in_room){
-                ch.act("Ты прекращаешь рубить дерево.");
-                room.ppl.sub(ch).call.act("%1$^C1 прекращает рубить дерево.", ch);
-                throw "logging: ch left the room";
-            }
-            //больше не стоим (деремся)
-            if (!(ch.position&.tables.position_table.stand)) {
-                ch.act("Ты не можешь продолжать рубить дерево.");
-                ch.recho("%1$^C1 прекращает рубить дерево.", ch);
-                throw "logging: ch not standing";
-            }
-            //передумал
-            if(ch.logging==null) {
-                ch.act("Ты прекращаешь рубить дерево.");
-                ch.recho("%1$^C1 прекращает рубить дерево.", ch);
-                throw "logging: second axe use or axe is removed";
-            }
-            //изчез топор из рук
-            if(ch.get_eq_char('wield')!=axe) {
-                //ch.act("Ты не можешь рубить деревья не вооружившись топором.");
+	//проверки, не стоит ли прервать наше увлекательное занятие
+	sleepRoom = function(seconds, ch, axe) {
+		var room;
+		room = ch.in_room;
+
+		var i;
+		for(i = 0; i < seconds*4; i = i + 1) {
+			.scheduler.sleep(1);
+
+			checkState(ch, room, axe);
+		}
+	};
+	checkState = function(ch, room, axe){
+			//комната восстановилась
+			if(room.logging==null) {
+				throw "logging: room is restored in process";
+			}
+
+			//помер
+			if (ch.dead)
+				throw "logging: ch is dead";
+			//покинул комнату
+			if (room != ch.in_room){
+				ch.act("Ты прекращаешь рубить дерево.");
+				ch.recho("%1$^C1 прекращает рубить дерево.", ch);
+				throw "logging: ch left the room";
+			}
+			//больше не стоим (деремся)
+			if (!(ch.position&.tables.position_table.stand)) {
+				ch.act("Ты не можешь продолжать рубить дерево.");
+				ch.recho("%1$^C1 прекращает рубить дерево.", ch);
+				throw "logging: ch not standing";
+			}
+			//передумал
+			if(ch.logging==null) {
+				ch.act("Ты прекращаешь рубить дерево.");
+				ch.recho("%1$^C1 прекращает рубить дерево.", ch);
+				throw "logging: second axe use or axe is removed";
+			}
+			//изчез топор из рук
+			if(ch.get_eq_char('wield')!=axe) {
+				//ch.act("Ты не можешь рубить деревья не вооружившись топором.");
 				ch.act("Для рубки леса надо вооружиться топором.");
-                room.ppl.sub(ch).call.act("%1$^C1 прекращает рубить дерево.", ch);
-                throw "logging: axe is lost";
-            }
-        }
-    };
-   
-    //скилы, спелы и аффекты:
-    LoggingSkill = .Skill("logging area"); //кинет ошибку если скилл не создан в мире
-    //spell/logging area/runRoom
-    .Spell("logging area").runRoom = function() {
-        var af;
-            
-        if (sect != "forest") {
-            throw("logging: logging area -> room not a forest.");
-            return;
-        }
-    
-        af = .Affect();
-        af.type      = skill.name;
-        af.level     = level;
-        af.location = .tables.apply_flags.heal_gain;
-        af.modifier = 0;
-        af.duration  = -1;
-        room.affectJoin(af);
-        
-        .tmp.craft.logging.debug("craft_logging: affect 'logging area' added.");
-    };
-    //affect/logging area/onDescr
-    .AffectHandler("logging area").onDescr = function(ch, af) {
-        var room; room = ch.in_room;
-        
-        if(room.logging==null) return "";
-        
-        this = .tmp.craft.logging;
-            
-        var descr;
-    
-        //количество оставшихся деревьев
-        var trees_quantity; trees_quantity = getTreesQuantity(room);
-        //максимальное количество деревьев
-        var trees_quantity_max; trees_quantity_max = room.logging.max_trees_health / MaxTreeHP;
-        
-        //количество срубленных деревьев (пней)
-        var stumps_quantity; stumps_quantity = trees_quantity_max - trees_quantity;
-    
-        //наличие недорубленного дерева
-        var chopped_tree; chopped_tree = ((room.logging.trees_health % MaxTreeHP)*100)/MaxTreeHP; //процент недорубленности 
-    
-        //процент готовности ростков ((хп_росткров/пни)/максХпДерева)
-        var sprouts_percents; 
-        if(stumps_quantity==0) {
-            sprouts_percents = 0;
-        }
-        else {
-            sprouts_percents = ((room.logging.sprouts_health / stumps_quantity) * 100 ) / MaxTreeHP;
-        }
+				ch.recho("%1$^C1 прекращает рубить дерево.", ch);
+				throw "logging: axe is lost";
+			}
+			return true;
+		
+		};
+		getTreeHealthStr = function(chopped_tree) {
+			if( chopped_tree == 100 )
+				return "{Cв прекрасном состоянии.{x";
+			else if( chopped_tree >= 90 )
+				return  "{Bимеет несколько царапин.{x";
+			else if( chopped_tree >= 75 )
+				return  "{Bимеет несколько небольших зарубин и царапин.{x";
+			else if( chopped_tree >= 50 )
+				return  "{Gимеет средней глубины надруб.{x";
+			else if( chopped_tree >= 30 )
+				return  "{Yимеет глубокий надруб.{x";
+			else if( chopped_tree >= 15 )
+				return  "{Mимеет очень глубокий надруб и вот-вот упадёт.{x";
+			else if( chopped_tree >= 0 )
+				return "{Rв ужасном состоянии.{x";
+		
+		};
 
+	//скилы, спелы и аффекты:
+	LoggingSkill = .Skill("logging area"); //кинет ошибку если скилл не создан в мире
+	DeforestationSkill = .Skill("deforestation"); //кинет ошибку если скилл не создан в мире
 
-        if(.buildplot) {
-            debug("Количество пней - "+stumps_quantity+". "
-                + "Дерево срублено на "+chopped_tree+"%. "
-                + "Поросль "+sprouts_percents+"%. \n"
-                + "trees_health="+room.logging.trees_health+"; max_trees_health="+room.logging.max_trees_health+"; sprouts_health="+room.logging.sprouts_health+";\n\n");
-        }
-    
-        //меняем описание в зависимости от переменных
-        descr = '';
-        if(room.logging.trees_health != room.logging.max_trees_health) {
-            descr = descr + "Похоже, здесь кто-то рубил деревья. ";
-            //пни
-            if(stumps_quantity==1) {
-                descr = descr + "Ты видишь пень от срубленного дерева. ";
-            } else if(stumps_quantity==trees_quantity_max) {
-                descr = descr + "Вокруг тебя только пни от срубленных деревьев. ";
-            } else if(stumps_quantity > 1 ) {
-                descr = descr + "Ты видишь несколько пней от срубленных деревьев. ";
-            }
-            //поросль
-            if(sprouts_percents!=0) {
-                if( sprouts_percents >= 80 )
-                    descr = descr + "Рядом растут молодые деревья, которые можно будет срубить. ";
-                else if( sprouts_percents >= 50 )
-                    descr = descr +  "Рядом растут молодые деревца, едва достигшие высоты человеческого роста. ";
-                else if( sprouts_percents >= 25 )
-                    descr = descr + "Рядом растут молодые побеги, уже достигшие высоты полурослика. ";
-                else if( sprouts_percents >= 10 )
-                    descr = descr + "Рядом виднеются едва окрепшие молодые побеги. ";
-                else if( sprouts_percents >= 0 )
-                    descr = descr + "Рядом виднеются молодые побеги, только проросшие из-под земли. ";
-            }
+	//пара служебных функций:
+	catchMsg = function(e) {
+		var ch;
+		ch = .get_char_world('Zaleshanin');
+		if(ch==null)
+			ch = .get_char_world('Miyamoto');
 
-            //деревья
-            var chopped_descr;
-            if(trees_quantity == 1 ) {
-                //descr = descr + "Рядом ты видишь единственное дерево пригодное для рубки. ";
-				descr = descr + "Здесь можно срубить только одно дерево. ";
-                chopped_descr = "Оно ";
-            } else if(trees_quantity == trees_quantity_max) {
-                descr = descr + "Но пока ни одно из них не срублено. ";
-                chopped_descr = "Лишь одно из них ";
-            } else if(trees_quantity > 1) {
-                descr = descr + "Но несколько деревьев пригодных для рубки уцелело. ";
-                chopped_descr = "Одно из них ";
-            }
-            
-            //надрубленное дерево
-            if(chopped_tree!=0) {
-                descr = descr + chopped_descr;
-                if( chopped_tree >= 100 )
-                    descr = descr + "{Cв прекрасном состоянии.{x";
-                else if( chopped_tree >= 90 )
-                    descr = descr +  "{Bимеет несколько царапин.{x";
-                else if( chopped_tree >= 75 )
-                    descr = descr +  "{Bимеет несколько небольших зарубин и царапин.{x";
-                else if( chopped_tree >= 50 )
-                    descr = descr +  "{Gимеет средней глубины надруб.{x";
-                else if( chopped_tree >= 30 )
-                    descr = descr +  "{Yимеет глубокий надруб.{x";
-                else if( chopped_tree >= 15 )
-                    descr = descr +  "{Mимеет очень глубокий надруб и вот-вот упадёт.{x";
-                else if( chopped_tree >= 0 )
-                    descr = descr + "{Rв ужасном состоянии.{x";
-            }
-       }
+		if(ch!=null)
+			ch.ptc('craft_logging: '+e);
+		else
+			.print('craft_logging: '+e);
+	};
 
-        return descr.format(80);
-    };
-    
-    //восстановление деревьев
-    //affect/logging area/onUpdateRoom
-    .AffectHandler("logging area").onUpdateRoom = function(room, af) {
-        //TODOv2 посчитать и замедлить рост деревьев
+	debug = function(str) {
+		//if(!.buildplot) return;
+		var ch;
+		ch = .get_char_world('zaleshanin');
+		if(ch==null)
+			ch = .get_char_world('miyamoto');
+		if(ch==null)
+			ch = .get_char_world('taiphoen');
+		if(ch==null)
+			ch = .get_char_world('kadm');
 
-        if(.buildplot) .tmp.craft.logging.debug("loggingAreaUpdate("+af.duration+")->started.");
-        if(.tmp.craft.logging==null) return false;
-        
-        this = .tmp.craft.logging;
-        
-        if(room.logging == null) {
-            if(.buildplot) debug(.fmt('loggingAreaUpdate: no logging in room:%s/%s',room.name, room.areaname));
-            clearLoggingArea(room);
-            //if(room.isAffected(LoggingSkill.name)) room.affectStrip(LoggingSkill.name);
-            return false;
-        } 
-                
-        // востановление 400hp по 1hp в раз 4 секунды = 1600 секунд (~26 минут)
-        var restore;
-        restore = getTreeRestoreHp(room); 
-        //считаем количество уцелевших деревьев
-        var tree_quantity;
-        tree_quantity = getTreesQuantity(room); 
-    
-        if(.buildplot) 
-            debug(.fmt("loggingAreaUpdate: [%d:%s]start_status: max_hp->%d trees->%d hp->%d sprouts->%d",
-            room.vnum, room.name, room.logging.max_trees_health, tree_quantity, room.logging.trees_health, room.logging.sprouts_health));
-       
-        //TODOv2 то дерево, то поросль (по очереди или одновременно)
-       
-        //если дерево срублено не до конца - востанавливаем его
-        if(tree_quantity > 0 && room.logging.trees_health % MaxTreeHP > 0) {
-            room.logging.trees_health = room.logging.trees_health + restore; 
-            if(room.logging.trees_health / MaxTreeHP > tree_quantity) {
-                tree_quantity = getTreesQuantity(room);
-                restore = room.logging.trees_health % MaxTreeHP;
-            } else {
-                restore = 0;
-            }
-        }
-        
-        //когда дерево востановлено - ростим побеги
-        if(room.logging.trees_health < room.logging.max_trees_health) {
-            room.logging.sprouts_health = room.logging.sprouts_health + restore;
-            //если деревья вырублены не все - добавляем каждые .tmp.craft.logging.MaxTreeHP (100) к деревьям
-            if(tree_quantity>0) {
-                if(room.logging.sprouts_health>=.tmp.craft.logging.MaxTreeHP) {
-                    restore = room.logging.sprouts_health % MaxTreeHP;
-                    room.logging.trees_health = room.logging.trees_health + ((room.logging.sprouts_health / MaxTreeHP) * MaxTreeHP);
-                    room.logging.sprouts_health = restore;
-                } 
-            } else { //если все деревья вырублены
-                //если ростков уже выросло как было леса изначально - восстанавливаем
-                if(room.logging.sprouts_health >= room.logging.max_trees_health) {
-                    room.logging.trees_health = room.logging.max_trees_health;
-                    room.logging.sprouts_health = 0;
-                }
-            }
-        } 
+		if(ch!=null) 
+			ch.act('debug:%s',str);
+	};
 
-        if(.buildplot) 
-            debug(.fmt("loggingAreaUpdate(%d): [%d:%s]finish_status: max_hp->%d hp->%d sprouts->%d",
-                af.duration, room.vnum, room.name, room.logging.max_trees_health, room.logging.trees_health, room.logging.sprouts_health));
-    
-        //лес востановлен - чистим
-        if(room.logging.trees_health == room.logging.max_trees_health) {
-            if(.buildplot) debug(.fmt("loggingAreaUpdate: restored [%d]:%s", room.vnum, room.name));
-            clearLoggingArea(room);
-        }
+		//топор, и его onUse, postUse
+	//инициализация двуручных топоров
+	Init = function(ch) {
+		var obj, axe_list, pObj;
+		axe_list=.List();
+		for( obj = .object_list; obj != null; obj = obj.next ) {
+			if(obj.item_type == .tables.item_table.weapon 
+				&& obj.value0 == .tables.weapon_class.axe
+				&& obj.hasWeaponFlag("two_hands") 
+				&& obj.pIndexData.vnum!=104 // not random
+				&& !axe_list.has(obj.pIndexData.vnum) 
+				) { 
 
-        return true;
-};
-    
-        
-    DeforestationSkill = .Skill("deforestation"); //кинет ошибку если скилл не создан в мире
-    .Spell(DeforestationSkill.name).runRoom = function() {
-        var af;
-        
-        if (sect != "forest") {
-            throw("logging: deforestation -> room not a forest.");
-            return;
-        }
-    
-        af = .Affect();
-        af.type      = skill.name;
-        af.level     = level;
-        af.duration  = 24*60;
-        af.location  = .tables.apply_flags.sector_type;
-        af.modifier  = .tables.sector_table.field;
-        room.affectJoin(af);
-        
-        ch.in_room.echo("В этом месте не осталось деревьев. Нечего рубить. Негде укрыться.");
-        .tmp.craft.logging.debug("craft_logging: affect 'deforestation' added.");
-    };
-    .AffectHandler(DeforestationSkill.name).onDescr = function(ch, af) {
-        var msg;
-        msg = "{1Вокруг тебя только пни и молодая поросль. Тут не замаскироваться. И больше нечего срубить. {/Лес будет востанавливаться " +
-              "{D[{yеще " + .fmt("{m%1$d{y час%1$I|а|ов", af.duration) + "{D]{2.{/"; 
-        return msg;
-    };
+				pObj = obj.pIndexData;
 
-    //пара служебных функций:
-    catchMsg = function(e) {
-        var ch;
-        ch = .get_char_world('Zaleshanin');
-        if(ch==null)
-            ch = .get_char_world('Miyamoto');
+				axe_list.push_back(pObj.vnum);
 
-        if(ch!=null)
-            ch.ptc('craft_logging: '+e);
-        else
-            .print('craft_logging: '+e);
-    };
+				if(pObj.onUse!=null || pObj.postUse!=null || pObj.onRemove!=null) {
+					if(pObj.lumber==null) {
+						ch.act("[%1$d] %2$^O1 не может быть инициализирован. для информации 'eval ptc(.get_obj_index(%1$d).rtapi())'" ,pObj.vnum, obj);
+						continue;
+					}
+				}
+				axeInit(pObj);
 
-    debug = function(str) {
-        //if(!.buildplot) return;
-        var ch;
-        ch = .get_char_world('zaleshanin');
-        if(ch==null)
-            ch = .get_char_world('miyamoto');
-        if(ch==null)
-            ch = .get_char_world('kadm');
+				ch.act("[%1$d] %2$^O1 - пригоден для рубки!", pObj.vnum, obj);
+			}
+		}
 
-        if(ch!=null) 
-            ch.act('debug:%s',str);
-    };
-})
+	};
+	axeInit = function(axe) {
+		axe.lumber = true;
+		axe.onUse = function(axe, ch, str) {
+			var result;
+			//пытаемся воспользоваться топором для рубки деревьев
+			result = .tmp.craft.logging.axeOnUse(axe, ch, str);
+			
+			return result;
+		};
+		axe.postUse = function(axe, ch, str) {
+			//начинаем рубить дерево
+			if(ch.start_logging!=null)  {
+				.tmp.craft.logging.axePostUse(axe, ch, str);
+			}
+		};
+		axe.onRemove = function (axe, ch) {
+			//пытаемся остановить рубку
+			.tmp.craft.logging.axeOnRemove(axe, ch);
+		};
+	};
+	/* Вызов инициализации */
+	Init(initiator);
+}, this, .List())
